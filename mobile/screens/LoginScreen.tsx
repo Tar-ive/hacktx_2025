@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthStore } from '../stores/authStore';
 
 interface LoginFormData {
   email: string;
@@ -12,8 +13,17 @@ const LoginScreen = () => {
     email: '',
     password: '',
   });
-  const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+
+  const { login, isLoading, isAuthenticated, error, clearError } = useAuthStore();
+
+  // Handle auth store errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Login Error', error);
+      clearError();
+    }
+  }, [error, clearError]);
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -39,23 +49,14 @@ const LoginScreen = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setLoading(true);
-
     try {
-      // For hackathon demo, we'll use mock authentication
-      // In production, this would call the backend API
-      console.log('Login attempt:', formData);
+      // Call auth store login function
+      await login(formData.email, formData.password);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // For demo, accept any email/password combination
-      Alert.alert('Success', `Welcome to ReBank!`);
+      // Navigation will happen automatically via App.tsx based on auth state
 
     } catch (error) {
-      Alert.alert('Error', 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Login error:', error);
     }
   };
 
@@ -89,7 +90,7 @@ const LoginScreen = () => {
                 autoCorrect={false}
                 value={formData.email}
                 onChangeText={(text) => handleInputChange('email', text)}
-                editable={!loading}
+                editable={!isLoading}
               />
             </View>
 
@@ -101,24 +102,24 @@ const LoginScreen = () => {
                 secureTextEntry
                 value={formData.password}
                 onChangeText={(text) => handleInputChange('password', text)}
-                editable={!loading}
+                editable={!isLoading}
               />
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={isLoading}
             >
               <Text style={styles.submitButtonText}>
-                {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                {isLoading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.toggleButton}
               onPress={() => setIsSignUp(!isSignUp)}
-              disabled={loading}
+              disabled={isLoading}
             >
               <Text style={styles.toggleButtonText}>
                 {isSignUp
@@ -129,13 +130,11 @@ const LoginScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {isSignUp && (
-            <View style={styles.demoNotice}>
-              <Text style={styles.demoNoticeText}>
-                Demo Mode: Any email/password combination will work
-              </Text>
-            </View>
-          )}
+          <View style={styles.demoNotice}>
+            <Text style={styles.demoNoticeText}>
+              Demo Mode: Any email/password combination will work
+            </Text>
+          </View>
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
