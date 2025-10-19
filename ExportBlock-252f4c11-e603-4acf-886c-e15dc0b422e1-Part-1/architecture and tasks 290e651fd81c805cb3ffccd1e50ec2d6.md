@@ -140,7 +140,7 @@ USER HEARS RESPONSE + SEES VISUALIZATION
 
 **Activation Triggers:**
 
-- Keywords: spend, budget, save, afford, expensive, cheap
+- Keywords: spend, budget, afford, expensive, cheap
 - Intent: spending_analysis, budget_question, savings_goal
 - Context: User mentions merchant, category, or purchase decision
 
@@ -188,7 +188,7 @@ USER HEARS RESPONSE + SEES VISUALIZATION
 
 **Activation Triggers:**
 
-- Keywords: invest, retirement, save, long-term, future, wealth, portfolio
+- Keywords: invest, retirement, save, credit-score,long-term, future, wealth, portfolio
 - Intent: investment_question, retirement_planning, wealth_building
 - Context: User mentions goals beyond 1 year
 
@@ -208,7 +208,7 @@ USER HEARS RESPONSE + SEES VISUALIZATION
 **Decision Process:**
 
 - Parse user message for keywords and semantic meaning
-- Classify intent into categories: spending, investing, bills, security, general
+- Classify intent into categories: spending, investing, security, general
 - Match intent to agent's expertise domain
 - Consider conversation history (stick with same agent for context)
 - If ambiguous, default to Nova (generalist)
@@ -241,7 +241,7 @@ USER HEARS RESPONSE + SEES VISUALIZATION
     - All account balances (checking, savings, credit cards)
     - Total net worth
     - Debt obligations
-    - Credit utilization
+    - Credit utilization + Credit score (simulated)
     - Emergency fund status (months of expenses covered)
 - Recent activity (last 30 days):
     - All transactions with categorization
@@ -258,12 +258,13 @@ USER HEARS RESPONSE + SEES VISUALIZATION
 
 - Nova's context:
     - User's spending personality (impulsive, careful, emotional)
-    - Trigger categories (stress spending, celebration spending)
+    - Trigger categories (spending, budgeting, what_if)
     - Budget adherence history
     - Past conversations about spending habits
     - Behavior change commitments
 - Atlas's context:
     - Investment knowledge level
+    - Trigger categories (credit_scores, investing)
     - Risk tolerance updates
     - Retirement goals and timeline
     - Past investment discussions
@@ -272,7 +273,7 @@ USER HEARS RESPONSE + SEES VISUALIZATION
 **Context Update Mechanisms:**
 
 - Real-time updates: New transaction → All agents notified
-- Periodic refresh: Every 5 minutes, pull latest account data
+- Periodic refresh: Every 2 minutes, pull latest account data
 - Event-driven: Goal completion → Celebration trigger for all agents
 - User-initiated: Profile changes propagate immediately
 

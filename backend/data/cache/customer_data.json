@@ -1,0 +1,14 @@
+{
+  "cached_at": "2025-10-18T22:35:52.946216",
+  "ttl": 3600,
+  "_id": "68f42c289683f20dd51a0293",
+  "first_name": "Taylor",
+  "last_name": "River",
+  "address": {
+    "street_number": "123",
+    "street_name": "Startup Ave",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "73301"
+  }
+}

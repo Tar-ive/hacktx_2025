@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - NESSIE_API_KEY=${NESSIE_API_KEY}
+      - NESSIE_CUSTOMER_ID=${NESSIE_CUSTOMER_ID}
+      - NESSIE_API_BASE=${NESSIE_API_BASE:-http://api.nessieisreal.com}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-3600}
+      - DEBUG=${DEBUG:-true}
+    volumes:
+      - ./data/cache:/app/data/cache
+      - ./src:/app/src
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

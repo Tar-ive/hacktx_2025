@@ -1,0 +1,398 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voice Banking Assistant API",
+    "version": "1.0.0",
+    "description": "FastAPI backend for multi-agent voice banking with Gemini orchestrator and ElevenLabs agents"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.banking.example.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "healthy" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "version": { "type": "string", "example": "1.0.0" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/customer/{customer_id}": {
+      "get": {
+        "summary": "Get customer data",
+        "operationId": "getCustomer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer data with accounts",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}": {
+      "get": {
+        "summary": "Get account details",
+        "operationId": "getAccount",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Account" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/transactions": {
+      "get": {
+        "summary": "Get account transactions",
+        "operationId": "getTransactions",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30, "minimum": 1, "maximum": 365 }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Transaction" }
+                    },
+                    "total": { "type": "integer" },
+                    "cached": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/message": {
+      "post": {
+        "summary": "Send text message to agent",
+        "operationId": "sendMessage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatMessageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatMessageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/select": {
+      "post": {
+        "summary": "Deterministic agent selection (for testing)",
+        "operationId": "selectAgent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": { "type": "string" }
+                },
+                "required": ["message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Selected agent with reasoning",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": { "type": "string", "enum": ["sentinel", "atlas", "nebula", "nova"] },
+                    "matched_keywords": { "type": "array", "items": { "type": "string" } },
+                    "reasoning": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cache/status": {
+      "get": {
+        "summary": "Get cache status",
+        "operationId": "getCacheStatus",
+        "responses": {
+          "200": {
+            "description": "Cache status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "memory_cache": {
+                      "type": "object",
+                      "properties": {
+                        "entries": { "type": "integer" },
+                        "size_bytes": { "type": "integer" }
+                      }
+                    },
+                    "file_cache": {
+                      "type": "object",
+                      "properties": {
+                        "exists": { "type": "boolean" },
+                        "age_seconds": { "type": "integer" },
+                        "ttl_remaining": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cache/refresh": {
+      "post": {
+        "summary": "Force cache refresh",
+        "operationId": "refreshCache",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customer_id": { "type": "string" }
+                },
+                "required": ["customer_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cache refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "cached_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CustomerResponse": {
+        "type": "object",
+        "properties": {
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "accounts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Account" }
+          },
+          "cached_at": { "type": "string", "format": "date-time" },
+          "from_cache": { "type": "boolean" }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "first_name": { "type": "string" },
+          "last_name": { "type": "string" },
+          "address": {
+            "type": "object",
+            "properties": {
+              "street_number": { "type": "string" },
+              "street_name": { "type": "string" },
+              "city": { "type": "string" },
+              "state": { "type": "string" },
+              "zip": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "type": { "type": "string", "enum": ["Checking", "Savings", "Credit Card"] },
+          "nickname": { "type": "string" },
+          "balance": { "type": "number", "format": "double" },
+          "rewards": { "type": "number", "format": "double" },
+          "customer_id": { "type": "string" },
+          "bills": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Bill" }
+          },
+          "deposits": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Deposit" }
+          },
+          "purchases": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Transaction" }
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "merchant_id": { "type": "string" },
+          "amount": { "type": "number", "format": "double" },
+          "description": { "type": "string" },
+          "purchase_date": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["pending", "executed", "cancelled"] },
+          "medium": { "type": "string", "enum": ["balance", "rewards"] }
+        }
+      },
+      "Bill": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "payee": { "type": "string" },
+          "payment_amount": { "type": "number", "format": "double" },
+          "payment_date": { "type": "string", "format": "date" },
+          "recurring_date": { "type": "integer" },
+          "status": { "type": "string", "enum": ["pending", "recurring", "cancelled"] }
+        }
+      },
+      "Deposit": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "amount": { "type": "number", "format": "double" },
+          "description": { "type": "string" },
+          "transaction_date": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["pending", "executed"] },
+          "medium": { "type": "string", "enum": ["balance", "rewards"] }
+        }
+      },
+      "ChatMessageRequest": {
+        "type": "object",
+        "properties": {
+          "customer_id": { "type": "string" },
+          "message": { "type": "string" },
+          "session_id": { "type": "string" }
+        },
+        "required": ["customer_id", "message"]
+      },
+      "ChatMessageResponse": {
+        "type": "object",
+        "properties": {
+          "agent": { "type": "string", "enum": ["nebula", "atlas", "sentinel", "nova"] },
+          "response": { "type": "string" },
+          "context_used": {
+            "type": "object",
+            "properties": {
+              "tools_called": { "type": "array", "items": { "type": "string" } },
+              "data_fetched": { "type": "boolean" }
+            }
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
