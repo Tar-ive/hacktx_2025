@@ -208,6 +208,22 @@ const RegisterScreen = () => {
     }
   };
 
+  const starDots = React.useMemo(
+    () => (
+      [
+        { top: '6%', left: '22%', size: 3, opacity: 0.75 },
+        { top: '12%', right: '18%', size: 2, opacity: 0.6 },
+        { top: '30%', left: '28%', size: 2, opacity: 0.58 },
+        { top: '44%', right: '20%', size: 3, opacity: 0.65 },
+        { bottom: '36%', left: '18%', size: 2, opacity: 0.55 },
+        { bottom: '26%', right: '26%', size: 2, opacity: 0.6 },
+        { bottom: '14%', left: '32%', size: 3, opacity: 0.6 },
+        { top: '20%', right: '45%', size: 2, opacity: 0.52 },
+      ]
+    ),
+    []
+  );
+
   const renderAccountInfoStep = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Create Your Account</Text>
@@ -427,9 +443,41 @@ const RegisterScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#0066CC', '#004499']}
+        colors={['#070B16', '#101623', '#1b2536']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
+        <View style={styles.celestialBackdrop}>
+          {starDots.map((dot, index) => (
+            <View
+              // eslint-disable-next-line react/no-array-index-key
+              key={`register-star-${index}`}
+              style={[
+                styles.starDot,
+                {
+                  top: dot.top,
+                  bottom: dot.bottom,
+                  left: dot.left,
+                  right: dot.right,
+                  width: dot.size,
+                  height: dot.size,
+                  borderRadius: dot.size / 2,
+                  opacity: dot.opacity,
+                },
+              ]}
+            />
+          ))}
+          <LinearGradient
+            colors={['rgba(129, 140, 248, 0.22)', 'transparent']}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
+            style={styles.mist}
+          />
+          <View style={styles.glowOne} />
+          <View style={styles.glowTwo} />
+        </View>
+
         <ScrollView
           contentContainerStyle={[styles.scrollContent, responsive.isDesktop && styles.scrollContentDesktop]}
           showsVerticalScrollIndicator={false}
@@ -471,6 +519,61 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
+  celestialBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  starDot: {
+    position: 'absolute',
+    backgroundColor: 'rgba(226, 232, 240, 0.9)',
+    shadowColor: '#e0f2fe',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  mist: {
+    position: 'absolute',
+    top: -140,
+    left: -100,
+    right: -100,
+    height: '55%',
+    opacity: 0.4,
+  },
+  glowOne: {
+    position: 'absolute',
+    top: '20%',
+    left: '10%',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+    opacity: 0.4,
+    shadowColor: 'rgba(56, 189, 248, 0.6)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 32,
+    elevation: 12,
+  },
+  glowTwo: {
+    position: 'absolute',
+    bottom: '16%',
+    right: '12%',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(129, 140, 248, 0.18)',
+    opacity: 0.35,
+    shadowColor: 'rgba(129, 140, 248, 0.6)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 28,
+    elevation: 10,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'flex-start',
@@ -487,20 +590,20 @@ const styles = StyleSheet.create({
   progressStep: {
     width: 40,
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
     borderRadius: 2,
   },
   progressStepActive: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#60a5fa',
   },
   progressText: {
-    color: '#ffffff',
+    color: 'rgba(226, 232, 240, 0.8)',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 30,
   },
   stepContent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
     borderRadius: 20,
     padding: 30,
     shadowColor: '#000',
@@ -508,20 +611,22 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.18)',
   },
   stepTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#0066CC',
+    color: '#bfdbfe',
     textAlign: 'center',
     marginBottom: 8,
   },
   stepSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(226, 232, 240, 0.72)',
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -530,24 +635,29 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 50,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    backgroundColor: 'rgba(8, 11, 19, 0.8)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
     fontSize: 16,
-    color: '#333',
+    color: '#e2e8f0',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(148, 163, 184, 0.3)',
   },
   stepButton: {
     height: 50,
-    backgroundColor: '#0066CC',
-    borderRadius: 10,
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
   stepButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
   },
   stepButtonText: {
     color: '#fff',
@@ -564,7 +674,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#e2e8f0',
     marginBottom: 15,
   },
   styleOptions: {
@@ -575,22 +685,22 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 15,
     borderRadius: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(8, 11, 19, 0.7)',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(148, 163, 184, 0.25)',
     alignItems: 'center',
   },
   styleOptionSelected: {
-    backgroundColor: 'rgba(0, 102, 204, 0.3)',
-    borderColor: '#0066CC',
+    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+    borderColor: 'rgba(96, 165, 250, 0.6)',
   },
   styleText: {
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(203, 213, 225, 0.75)',
     fontWeight: '600',
   },
   styleTextSelected: {
-    color: '#0066CC',
+    color: '#bfdbfe',
   },
   colorGrid: {
     flexDirection: 'row',
@@ -601,14 +711,14 @@ const styles = StyleSheet.create({
     width: '48%',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(8, 11, 19, 0.7)',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(148, 163, 184, 0.25)',
     alignItems: 'center',
   },
   colorOptionSelected: {
-    backgroundColor: 'rgba(0, 102, 204, 0.3)',
-    borderColor: '#0066CC',
+    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+    borderColor: 'rgba(96, 165, 250, 0.6)',
   },
   colorPreview: {
     width: 40,
@@ -618,20 +728,25 @@ const styles = StyleSheet.create({
   },
   colorName: {
     fontSize: 12,
-    color: '#666',
+    color: 'rgba(203, 213, 225, 0.75)',
     textAlign: 'center',
   },
   checkButton: {
-    backgroundColor: '#0066CC',
+    backgroundColor: '#2563eb',
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
   checkButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
   },
   checkButtonSuccess: {
-    backgroundColor: '#28a745',
+    backgroundColor: 'rgba(45, 212, 191, 0.25)',
   },
   checkButtonText: {
     fontSize: 16,
@@ -640,21 +755,21 @@ const styles = StyleSheet.create({
   },
   matchInfo: {
     marginTop: 15,
-    padding: 15,
-    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-    borderRadius: 12,
+    padding: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(40, 167, 69, 0.3)',
+    borderColor: 'rgba(45, 212, 191, 0.35)',
   },
   matchTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#28a745',
+    color: '#5eead4',
     marginBottom: 8,
   },
   matchText: {
     fontSize: 13,
-    color: '#666',
+    color: 'rgba(226, 232, 240, 0.75)',
     marginBottom: 4,
   },
   navigationButtons: {
@@ -665,28 +780,33 @@ const styles = StyleSheet.create({
   secondaryButton: {
     flex: 1,
     height: 50,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: 'rgba(8, 11, 19, 0.7)',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(148, 163, 184, 0.25)',
   },
   secondaryButtonText: {
-    color: '#666',
+    color: 'rgba(203, 213, 225, 0.75)',
     fontSize: 16,
     fontWeight: '600',
   },
   primaryButton: {
     flex: 2,
     height: 50,
-    backgroundColor: '#8b5cf6',
-    borderRadius: 10,
+    backgroundColor: '#7c3aed',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
   },
   primaryButtonText: {
     color: '#ffffff',
@@ -695,13 +815,15 @@ const styles = StyleSheet.create({
   },
   demoNotice: {
     marginTop: 20,
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 10,
+    padding: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    borderRadius: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.18)',
   },
   demoNoticeText: {
-    color: '#fff',
+    color: 'rgba(240, 249, 255, 0.85)',
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
@@ -714,7 +836,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: 'rgba(226, 232, 240, 0.8)',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -44,6 +44,9 @@ interface GeminiPalette {
   ray: string;
   sparkle: string;
   text: string;
+  coreStroke: string;
+  coreHighlight: string;
+  accent: string;
 }
 
 const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
@@ -59,7 +62,10 @@ const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
     pulse: 'rgba(147, 197, 253, 0.45)',
     ray: 'rgba(255, 255, 255, 0.15)',
     sparkle: '#e0f2fe',
-    text: '#f8fafc'
+    text: '#f8fafc',
+    coreStroke: 'rgba(148, 163, 246, 0.65)',
+    coreHighlight: 'rgba(255, 255, 255, 0.35)',
+    accent: '#60a5fa'
   },
   nebula: {
     gradients: {
@@ -73,7 +79,10 @@ const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
     pulse: 'rgba(196, 181, 253, 0.4)',
     ray: 'rgba(216, 180, 254, 0.25)',
     sparkle: '#f5d0fe',
-    text: '#faf5ff'
+    text: '#faf5ff',
+    coreStroke: 'rgba(221, 214, 254, 0.6)',
+    coreHighlight: 'rgba(255, 255, 255, 0.3)',
+    accent: '#c084fc'
   },
   atlas: {
     gradients: {
@@ -87,7 +96,10 @@ const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
     pulse: 'rgba(125, 211, 252, 0.35)',
     ray: 'rgba(191, 219, 254, 0.25)',
     sparkle: '#bfdbfe',
-    text: '#f5fbff'
+    text: '#f5fbff',
+    coreStroke: 'rgba(147, 197, 253, 0.6)',
+    coreHighlight: 'rgba(226, 232, 240, 0.28)',
+    accent: '#38bdf8'
   },
   sentinel: {
     gradients: {
@@ -101,7 +113,10 @@ const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
     pulse: 'rgba(103, 232, 249, 0.3)',
     ray: 'rgba(125, 211, 252, 0.2)',
     sparkle: '#ccfbf1',
-    text: '#ecfeff'
+    text: '#ecfeff',
+    coreStroke: 'rgba(94, 234, 212, 0.55)',
+    coreHighlight: 'rgba(224, 255, 255, 0.25)',
+    accent: '#2dd4bf'
   },
   nova: {
     gradients: {
@@ -115,7 +130,10 @@ const BASE_PALETTES: Record<GeminiAgentId, GeminiPalette> = {
     pulse: 'rgba(253, 164, 175, 0.35)',
     ray: 'rgba(254, 226, 226, 0.25)',
     sparkle: '#ffe4e6',
-    text: '#fff7ed'
+    text: '#fff7ed',
+    coreStroke: 'rgba(252, 165, 165, 0.6)',
+    coreHighlight: 'rgba(255, 237, 213, 0.35)',
+    accent: '#fb7185'
   },
 };
 
@@ -246,6 +264,16 @@ const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
   });
 
   const innerSize = size * 0.55;
+  const orbitSize = size * 0.9;
+  const constellationNodes = useMemo(
+    () => [
+      { top: size * 0.1, left: size * 0.2 },
+      { top: size * 0.18, right: size * 0.12 },
+      { bottom: size * 0.15, left: size * 0.18 },
+      { bottom: size * 0.1, right: size * 0.2 },
+    ],
+    [size],
+  );
 
   return (
     <TouchableOpacity
@@ -257,17 +285,28 @@ const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
       <View style={[styles.container, { width: size, height: size }]}>
         <Animated.View
           style={[
-            styles.halo,
+            styles.haloContainer,
             {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
+              width: orbitSize,
+              height: orbitSize,
+              borderRadius: orbitSize / 2,
               opacity: haloOpacity,
-              backgroundColor: palette.haloFill,
-              borderColor: palette.haloBorder,
             },
           ]}
-        />
+        >
+          <LinearGradient
+            colors={[palette.haloFill, 'transparent']}
+            start={{ x: 0.2, y: 0.1 }}
+            end={{ x: 0.8, y: 0.9 }}
+            style={StyleSheet.flatten([
+              styles.haloGradient,
+              {
+                borderRadius: orbitSize / 2,
+                borderColor: palette.haloBorder,
+              },
+            ])}
+          />
+        </Animated.View>
 
         {(mode === 'listening' || mode === 'speaking') && (
           <Animated.View
@@ -318,9 +357,34 @@ const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
           colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.core, { width: innerSize, height: innerSize, borderRadius: innerSize / 2 }]}
+          style={[
+            styles.core,
+            {
+              width: innerSize,
+              height: innerSize,
+              borderRadius: innerSize / 2,
+              borderColor: palette.coreStroke,
+            },
+          ]}
         >
-          <View style={styles.coreGlow} />
+          <View
+            style={[
+              styles.coreGlow,
+              {
+                borderRadius: (innerSize - 24) / 2,
+                backgroundColor: palette.coreHighlight,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.coreHighlight,
+              {
+                borderRadius: innerSize / 2,
+                borderColor: palette.coreStroke,
+              },
+            ]}
+          />
           <Text style={[styles.coreText, { color: palette.text }]}>Gemini</Text>
         </LinearGradient>
 
@@ -350,6 +414,31 @@ const GeminiAssistant: React.FC<GeminiAssistantProps> = ({
             ]}
           />
         </View>
+
+        <View style={styles.constellationContainer}>
+          {constellationNodes.map((node, index) => (
+            <View
+              // eslint-disable-next-line react/no-array-index-key
+              key={`constellation-${index}`}
+              style={[
+                styles.constellationNode,
+                node,
+                { backgroundColor: palette.accent },
+              ]}
+            />
+          ))}
+          <View
+            style={[
+              styles.constellationArc,
+              {
+                borderColor: palette.accent,
+                width: orbitSize * 0.85,
+                height: orbitSize * 0.85,
+                borderRadius: (orbitSize * 0.85) / 2,
+              },
+            ]}
+          />
+        </View>
       </View>
 
       <View style={styles.textBlock}>
@@ -369,15 +458,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  halo: {
+  haloContainer: {
     position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#a5b4fc',
-    backgroundColor: '#c7d2fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  haloGradient: {
+    flex: 1,
+    borderWidth: 1.5,
+    opacity: 0.8,
   },
   pulse: {
     position: 'absolute',
-    backgroundColor: '#93c5fd',
+    backgroundColor: 'rgba(147, 197, 253, 0.4)',
   },
   starWrapper: {
     position: 'absolute',
@@ -407,6 +500,7 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 16,
     padding: 16,
+    borderWidth: 1.5,
   },
   coreGlow: {
     position: 'absolute',
@@ -414,8 +508,13 @@ const styles = StyleSheet.create({
     left: 14,
     right: 14,
     bottom: 14,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  coreHighlight: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderWidth: 1,
+    opacity: 0.5,
   },
   coreText: {
     color: '#f8fafc',
@@ -448,8 +547,27 @@ const styles = StyleSheet.create({
   },
   subLabel: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: 'rgba(226, 232, 240, 0.82)',
     textAlign: 'center',
+  },
+  constellationContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  constellationNode: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    opacity: 0.6,
+  },
+  constellationArc: {
+    position: 'absolute',
+    top: '7%',
+    left: '7%',
+    borderWidth: 0.6,
+    opacity: 0.25,
   },
 });
 
