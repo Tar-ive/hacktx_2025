@@ -20,6 +20,7 @@ class Config:
     
     # ElevenLabs API
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+    ELEVENLABS_WEBHOOK_SECRET = os.getenv("ELEVENLABS_WEBHOOK_SECRET", "")
     
     # Agent IDs (created via ElevenLabs API)
     AGENT_ID_NEBULA = os.getenv("AGENT_ID_NEBULA", "")
@@ -40,6 +41,8 @@ class Config:
     # Cache configuration
     CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
     CACHE_FILE_PATH = os.getenv("CACHE_FILE_PATH", "data/cache/customer_data.json")
+    CONVERSATION_DATA_DIR = os.getenv("CONVERSATION_DATA_DIR", "data/conversations")
+    USER_DATA_FILE = os.getenv("USER_DATA_FILE", "data/rebank_users.json")
     
     # Server configuration
     HOST = os.getenv("HOST", "0.0.0.0")
@@ -65,5 +68,15 @@ class Config:
         # Ensure cache directory exists
         cache_dir = Path(cls.CACHE_FILE_PATH).parent
         cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure conversation directory exists
+        conversation_dir = Path(cls.CONVERSATION_DATA_DIR)
+        conversation_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure user data file exists
+        user_file = Path(cls.USER_DATA_FILE)
+        if not user_file.exists():
+            user_file.parent.mkdir(parents=True, exist_ok=True)
+            user_file.write_text("{}", encoding="utf-8")
 
 config = Config()

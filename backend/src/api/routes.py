@@ -13,12 +13,14 @@ from ..models.schemas import (
     CacheRefreshRequest,
     CacheRefreshResponse,
     CacheStatusResponse,
+    ConversationSummaryResponse,
 )
 from ..orchestrator.router import route_to_agent
 from ..orchestrator.tool_executor import ToolExecutor, determine_tools_for_agent
 from ..tools.nessie import TOOLS_REGISTRY, cache
 from ..services.nessie_client import nessie_client
 from ..services.elevenlabs_client import call_agent_with_context
+from ..services.conversation_store import conversation_store
 from ..config import config
 
 router = APIRouter()
@@ -75,6 +77,18 @@ async def get_customer(customer_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/api/v1/conversation/{session_id}/summary",
+    response_model=ConversationSummaryResponse,
+)
+async def get_conversation_summary(session_id: str):
+    """Return a persisted summary for the given conversation session."""
+    summary = await conversation_store.get_summary(session_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return summary
 
 
 @router.get("/api/v1/accounts/{account_id}")

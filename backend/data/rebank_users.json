@@ -1,0 +1,16 @@
+{
+  "users": [
+    {
+      "id": "demo_user",
+      "email": "taylor@rebankaustin.com",
+      "password": "demo1234",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "preferences": {
+        "primaryColor": "#667EEA",
+        "secondaryColor": "#764BA2"
+      }
+    }
+  ]
+}
