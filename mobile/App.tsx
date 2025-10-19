@@ -11,11 +11,17 @@ import { useAuthStore } from './stores/authStore';
 // Import screens
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import AnalyticsScreen from './screens/AnalyticsScreen';
+import AIHomeScreen from './screens/AIHomeScreen';
+import AgentChatScreen from './screens/AgentChatScreen';
 
 // Define navigation types
 export type RootStackParamList = {
   Login: undefined;
+  AIHome: undefined;
   Dashboard: undefined;
+  Analytics: undefined;
+  AgentChat: { agentId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,7 +49,7 @@ function Navigation() {
     <NavigationContainer>
       <StatusBar style="auto" />
       <Stack.Navigator
-        initialRouteName={isAuthenticated ? "Dashboard" : "Login"}
+        initialRouteName={isAuthenticated ? "AIHome" : "Login"}
         screenOptions={{
           headerStyle: {
             backgroundColor: '#0066CC', // Capital One blue
@@ -61,14 +67,34 @@ function Navigation() {
             options={{ headerShown: false }}
           />
         ) : (
-          <Stack.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{
-              title: 'ReBank',
-              headerBackVisible: false
-            }}
-          />
+          <>
+            <Stack.Screen
+              name="AIHome"
+              component={AIHomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{
+                title: 'Dashboard',
+                headerBackVisible: true
+              }}
+            />
+            <Stack.Screen
+              name="Analytics"
+              component={AnalyticsScreen}
+              options={{
+                title: 'Analytics',
+                headerBackVisible: true
+              }}
+            />
+            <Stack.Screen
+              name="AgentChat"
+              component={AgentChatScreen}
+              options={{ headerShown: false }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
