@@ -15,6 +15,8 @@ import DashboardScreen from './screens/DashboardScreen';
 import AnalyticsScreen from './screens/AnalyticsScreen';
 import AIHomeScreen from './screens/AIHomeScreen';
 import AgentChatScreen from './screens/AgentChatScreen';
+import VoiceConversationScreen from './screens/VoiceConversationScreen';
+import ConversationSummaryScreen from './screens/ConversationSummaryScreen';
 
 // Define navigation types
 export type RootStackParamList = {
@@ -24,6 +26,8 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Analytics: undefined;
   AgentChat: { agentId: string };
+  VoiceConversation: undefined;
+  ConversationSummary: { sessionId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -101,6 +105,16 @@ function Navigation() {
             <Stack.Screen
               name="AgentChat"
               component={AgentChatScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="VoiceConversation"
+              component={VoiceConversationScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ConversationSummary"
+              component={ConversationSummaryScreen}
               options={{ headerShown: false }}
             />
           </>

@@ -105,7 +105,7 @@ Please analyze this data and respond to the user's query in a conversational, he
         """
         Format tool results into readable context for agent.
         
-        This provides the cached financial data to all agents as fallback.
+        This provides the cached financial data to all agents with actual numbers.
         """
         lines = []
         
@@ -121,6 +121,23 @@ Please analyze this data and respond to the user's query in a conversational, he
             # Format different result types
             lines.append(f"\n📊 {tool_name}:")
             
+            # Special handling for spending by category (show all amounts)
+            if tool_name == "get_spending_by_category" and isinstance(result, dict):
+                total_spending = sum(v for v in result.values() if isinstance(v, (int, float)))
+                lines.append(f"  Total Spending: ${total_spending:.2f}")
+                for category, amount in result.items():
+                    if isinstance(amount, (int, float)):
+                        lines.append(f"  • {category.title()}: ${amount:.2f}")
+                continue
+            
+            # Special handling for account balance
+            if tool_name == "get_account_balance" and isinstance(result, dict):
+                if "total_balance" in result:
+                    lines.append(f"  Total Balance: ${result['total_balance']:.2f}")
+                if "accounts" in result:
+                    lines.append(f"  Number of Accounts: {len(result['accounts'])}")
+                continue
+            
             if isinstance(result, list):
                 if len(result) == 0:
                     lines.append("  No data available")
@@ -135,9 +152,15 @@ Please analyze this data and respond to the user's query in a conversational, he
                     lines.append(f"  ... and {len(result) - 5} more")
             
             elif isinstance(result, dict):
-                # Format dict as key-value pairs
+                # Format dict as key-value pairs with numbers
                 for key, value in result.items():
-                    if isinstance(value, (int, float, str, bool)):
+                    if isinstance(value, (int, float)):
+                        # Format numbers as currency if they look like amounts
+                        if key.lower().find('amount') >= 0 or key.lower().find('balance') >= 0 or key.lower().find('total') >= 0:
+                            lines.append(f"  • {key}: ${value:.2f}")
+                        else:
+                            lines.append(f"  • {key}: {value}")
+                    elif isinstance(value, (str, bool)):
                         lines.append(f"  • {key}: {value}")
                     elif isinstance(value, list):
                         lines.append(f"  • {key}: {len(value)} items")

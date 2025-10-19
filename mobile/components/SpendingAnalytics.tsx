@@ -22,13 +22,25 @@ const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({ transactions }) =
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculate monthly trends (simplified demo data)
-  const monthlyTrends = [
-    { month: 'Jul', amount: 1200 },
-    { month: 'Aug', amount: 1450 },
-    { month: 'Sep', amount: 1100 },
-    { month: 'Oct', amount: 980 },
-  ];
+  // Calculate monthly trends from actual transaction data
+  const monthlyTrends = React.useMemo(() => {
+    const monthlyData: Record<string, number> = {};
+    
+    transactions.forEach(transaction => {
+      if (transaction.amount < 0) { // Only expenses
+        const date = new Date(transaction.date);
+        const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + Math.abs(transaction.amount);
+      }
+    });
+    
+    // Convert to array and sort by date
+    const sortedMonths = Object.entries(monthlyData)
+      .map(([month, amount]) => ({ month: month.split(' ')[0], amount }))
+      .slice(-4); // Last 4 months
+    
+    return sortedMonths.length > 0 ? sortedMonths : [{ month: 'N/A', amount: 0 }];
+  }, [transactions]);
 
   // Calculate top spending categories
   const topCategories = Object.entries(spendingByCategory)

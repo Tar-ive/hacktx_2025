@@ -48,6 +48,62 @@ class CacheStatusResponse(BaseModel):
     file_cache: Dict[str, Any]
 
 
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserRegisterRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    zip_code: str
+    preferences: Optional[Dict[str, Any]] = None
+
+
+class UserMatchRequest(BaseModel):
+    first_name: str
+    last_name: str
+    zip_code: str
+
+
+class UserMatchResponse(BaseModel):
+    matched: bool
+    confidence: float
+    match_reason: str
+    customer_id: Optional[str] = None
+    customer: Optional[Dict[str, Any]] = None
+
+
+class UserAuthResponse(BaseModel):
+    success: bool
+    user_id: Optional[str] = None
+    customer_id: Optional[str] = None
+    linked: bool
+    message: str
+    user_data: Optional[Dict[str, Any]] = None
+    profile: Optional[Dict[str, Any]] = None
+    match: Optional[Dict[str, Any]] = None
+
+
+class UserDataResponse(BaseModel):
+    linked: bool
+    customer_id: Optional[str] = None
+    customer: Optional[Dict[str, Any]] = None
+    accounts: Optional[Any] = None
+    balance: Optional[Any] = None
+    transactions_30d: Optional[List[Any]] = None
+    transactions_90d: Optional[List[Any]] = None
+    spending_by_category: Optional[Dict[str, float]] = None
+    spending_patterns: Optional[Dict[str, Any]] = None
+    deposits_history: Optional[List[Any]] = None
+    unusual_transactions: Optional[List[Any]] = None
+    insights: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
 class ErrorResponse(BaseModel):
     error: str
     message: str

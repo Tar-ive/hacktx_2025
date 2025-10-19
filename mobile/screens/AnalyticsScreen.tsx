@@ -1,29 +1,77 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../stores/authStore';
 import SpendingAnalytics from '../components/SpendingAnalytics';
 import { useResponsive } from '../hooks/useResponsive';
+import { DataService, UserFinancialData } from '../services/DataService';
 
 const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   const responsive = useResponsive();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  
+  const [financialData, setFinancialData] = useState<UserFinancialData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load financial data
+  const loadData = async () => {
+    if (!user?.customerId) {
+      setLoading(false);
+      setError('No customer ID found. Please log in again.');
+      return;
+    }
 
-  // Demo transactions for analytics
-  const [transactions] = useState([
-    { id: '1', date: 'Oct 18, 2024', merchant: 'Starbucks', amount: -5.50, category: 'coffee', tags: ['morning'] },
-    { id: '2', date: 'Oct 17, 2024', merchant: 'Target', amount: -87.43, category: 'shopping', tags: ['groceries'] },
-    { id: '3', date: 'Oct 16, 2024', merchant: 'Shell Gas Station', amount: -45.00, category: 'transport', tags: [] },
-    { id: '4', date: 'Oct 15, 2024', merchant: 'Chipotle', amount: -12.75, category: 'food', tags: ['lunch'] },
-    { id: '5', date: 'Oct 14, 2024', merchant: 'Amazon', amount: -29.99, category: 'shopping', tags: [] },
-    { id: '6', date: 'Oct 13, 2024', merchant: 'Salary Deposit', amount: 3500.00, category: 'income', tags: [] },
-    { id: '7', date: 'Oct 12, 2024', merchant: 'Netflix', amount: -15.99, category: 'entertainment', tags: ['subscription'] },
-    { id: '8', date: 'Oct 11, 2024', merchant: 'Whole Foods', amount: -67.23, category: 'groceries', tags: [] },
-    { id: '9', date: 'Oct 10, 2024', merchant: 'Uber', amount: -23.50, category: 'transport', tags: [] },
-    { id: '10', date: 'Oct 9, 2024', merchant: 'Apple Store', amount: -999.00, category: 'electronics', tags: ['work'] },
-    { id: '11', date: 'Oct 8, 2024', merchant: 'Gym Membership', amount: -49.99, category: 'health', tags: ['subscription'] },
-    { id: '12', date: 'Oct 7, 2024', merchant: 'Restaurant', amount: -85.20, category: 'dining', tags: ['date'] },
-  ]);
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await DataService.getUserData(user.customerId);
+      setFinancialData(data);
+      console.log('✓ Analytics data loaded');
+    } catch (err) {
+      console.error('❌ Error loading analytics data:', err);
+      setError('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const onRefresh = async () => {
+    if (!user?.customerId) return;
+    
+    try {
+      setRefreshing(true);
+      await DataService.refreshData(user.customerId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Error refreshing:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  
+  useEffect(() => {
+    loadData();
+  }, [user?.customerId]);
+  
+  // Transform data for SpendingAnalytics component
+  const getTransactions = () => {
+    if (!financialData) return [];
+    
+    return financialData.transactions_90d.map((tx: any) => ({
+      id: tx._id || tx.id,
+      date: new Date(tx.purchase_date || tx.transaction_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      merchant: tx.description || tx.merchant_name || 'Transaction',
+      amount: tx.amount || 0,
+      category: tx.category || 'other',
+      tags: []
+    }));
+  };
 
   const handleBackToDashboard = () => {
     navigation.navigate('Dashboard');
@@ -40,6 +88,50 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
       ]
     );
   };
+  
+  // Loading state
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#0066CC', '#004499']} style={styles.header}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBackToDashboard}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Spending Analytics</Text>
+          </View>
+        </LinearGradient>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0066CC" />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      </View>
+    );
+  }
+  
+  // Error state
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#0066CC', '#004499']} style={styles.header}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBackToDashboard}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Spending Analytics</Text>
+          </View>
+        </LinearGradient>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>❌ {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+  
+  const transactions = getTransactions();
 
   return (
     <View style={styles.container}>
@@ -66,6 +158,15 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
       <ScrollView
         style={[styles.content, responsive.isDesktop && styles.contentDesktop]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0066CC"
+            title="Pull to refresh"
+            titleColor="#666"
+          />
+        }
       >
         <SpendingAnalytics transactions={transactions} />
 
@@ -193,6 +294,36 @@ const styles = StyleSheet.create({
   contentDesktop: {
     paddingHorizontal: 40,
     paddingTop: 30,
+  },
+  
+  // Loading and error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    color: '#666',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  errorText: {
+    color: '#ff4757',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

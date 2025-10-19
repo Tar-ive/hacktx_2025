@@ -15,7 +15,6 @@ import LinearGradient from '../components/LinearGradientWrapper';
 import UserAvatar from '../components/UserAvatar';
 import { useAuthStore } from '../stores/authStore';
 import { useResponsive } from '../hooks/useResponsive';
-import NessieService from '../services/nessieService';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
@@ -42,7 +41,7 @@ const COSMIC_COLORS = [
 const RegisterScreen = () => {
   const responsive = useResponsive();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { setUser, updateUserWithAvatar, isLoading, error, clearError } = useAuthStore();
+  const { register: registerUser, isLoading, error, clearError } = useAuthStore();
 
   const [formData, setFormData] = useState<RegisterFormData>({
     email: '',
@@ -55,10 +54,11 @@ const RegisterScreen = () => {
   const [avatarStyle, setAvatarStyle] = useState<'minimal' | 'futuristic'>('futuristic');
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [step, setStep] = useState(1); // 1: Account info, 2: Avatar setup
-  const [nessieService, setNessieService] = useState<any>(null);
   const [isCheckingCapitalOne, setIsCheckingCapitalOne] = useState(false);
   const [capitalOneMatch, setCapitalOneMatch] = useState(false);
   const [capitalOneMatchData, setCapitalOneMatchData] = useState<any>(null);
+  const [matchConfidence, setMatchConfidence] = useState<number | null>(null);
+  const [matchReason, setMatchReason] = useState<string | null>(null);
 
   const selectedColors = COSMIC_COLORS[selectedColorIndex];
 
@@ -69,19 +69,6 @@ const RegisterScreen = () => {
       clearError();
     }
   }, [error, clearError]);
-
-  // Initialize nessie service
-  useEffect(() => {
-    try {
-      const service = NessieService.getInstance();
-      setNessieService(service);
-      service.loadDemoData().catch(error => {
-        console.error('Failed to load demo data:', error);
-      });
-    } catch (error) {
-      console.error('Failed to initialize nessie service:', error);
-    }
-  }, []);
 
   const handleInputChange = (field: keyof RegisterFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -135,31 +122,41 @@ const RegisterScreen = () => {
       return;
     }
 
-    if (!nessieService) {
-      Alert.alert('Service Error', 'Service not ready. Please try again.');
-      return;
-    }
-
     setIsCheckingCapitalOne(true);
 
     try {
-      const matchingResult = await nessieService.findMatchingAccount(
-        formData.firstName,
-        formData.lastName,
-        formData.zip
-      );
+      const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE}/api/v1/auth/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          zip_code: formData.zip,
+        }),
+      });
 
-      if (matchingResult.matched && matchingResult.customerData) {
-        setCapitalOneMatchData(matchingResult.customerData);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const matchData = await response.json();
+
+      if (matchData.matched && matchData.customer) {
+        setCapitalOneMatchData(matchData.customer);
         setCapitalOneMatch(true);
+        setMatchConfidence(typeof matchData.confidence === 'number' ? matchData.confidence : null);
+        setMatchReason(matchData.match_reason || null);
         Alert.alert(
           'Account Found! ✨',
-          `We found a matching Capital One account with ${matchingResult.customerData.accounts.length} accounts.`,
+          `We found a matching Capital One account with ${matchData.customer.accounts?.length || 0} accounts.`,
           [{ text: 'Great!', style: 'default' }]
         );
       } else {
         setCapitalOneMatch(false);
         setCapitalOneMatchData(null);
+        setMatchConfidence(typeof matchData.confidence === 'number' ? matchData.confidence : null);
+        setMatchReason(matchData.match_reason || null);
         Alert.alert(
           'No Account Found',
           'We couldn\'t find a matching Capital One account with the provided information. You can still proceed with manual setup.',
@@ -175,86 +172,24 @@ const RegisterScreen = () => {
   };
 
   const handleCompleteRegistration = async () => {
-    console.log('handleCompleteRegistration called');
     if (!validateAvatarSetup()) {
-      console.log('Validation failed');
       return;
     }
-    console.log('Validation passed - about to call completeRegistration');
 
-    const avatarData = {
+    const success = await registerUser({
+      email: formData.email.trim(),
+      password: formData.password,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       zip: formData.zip.trim(),
-      avatarStyle,
-      primaryColor: selectedColors.primary,
-      secondaryColor: selectedColors.secondary,
-    };
+      preferences: {
+        avatarStyle,
+        primaryColor: selectedColors.primary,
+        secondaryColor: selectedColors.secondary,
+      },
+    });
 
-    if (capitalOneMatch && capitalOneMatchData) {
-      Alert.alert(
-        'Capital One Account Found! 🎉',
-        `We found a Capital One account for ${formData.firstName} ${formData.lastName} with multiple accounts and transaction history. Would you like to import this data into Rebank?`,
-        [
-          { text: 'Skip Import', style: 'cancel' },
-          {
-            text: 'Import Data',
-            onPress: async () => {
-              if (!nessieService) {
-                completeRegistration(avatarData);
-                return;
-              }
-
-              try {
-                Alert.alert('Importing...', 'Please wait while we import your account data.');
-                const importResult = await nessieService.importAccountData(capitalOneMatchData);
-                if (importResult.success) {
-                  completeRegistration({
-                    ...avatarData,
-                    capitalOneData: importResult.data,
-                  });
-                } else {
-                  completeRegistration(avatarData);
-                }
-              } catch (error) {
-                console.error('Import error:', error);
-                completeRegistration(avatarData);
-              }
-            }
-          },
-          {
-            text: 'Continue Without Import',
-            onPress: () => completeRegistration(avatarData)
-          }
-        ]
-      );
-    } else {
-      console.log('About to call completeRegistration directly');
-      completeRegistration(avatarData);
-    }
-  };
-
-  const completeRegistration = async (userData: any) => {
-    console.log('=== COMPLETE REGISTRATION START ===');
-    try {
-      console.log('completeRegistration called with:', userData);
-      // Create user account
-      const user = {
-        id: `user_${Date.now()}`,
-        name: `${userData.firstName} ${userData.lastName}`,
-        email: formData.email,
-        balance: 0,
-        ...userData
-      };
-
-      console.log('Registering user in auth store:', user);
-      // Register user in auth store
-      console.log('Calling setUser function...');
-      setUser(user);
-      console.log('SetUser function called, auth state updated');
-
-      // Show success alert immediately
-      console.log('About to show Alert...');
+    if (success) {
       Alert.alert(
         'Registration Complete! 🎉',
         'Your account has been created successfully.',
@@ -262,40 +197,15 @@ const RegisterScreen = () => {
           {
             text: 'Continue to Dashboard',
             onPress: () => {
-              console.log('Navigating to AIHome...');
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'AIHome' }],
               });
-            }
-          }
+            },
+          },
         ]
       );
-    } catch (error) {
-      console.error('Registration error:', error);
-      Alert.alert('Registration Failed', 'Unable to complete registration. Please try again.');
     }
-  };
-
-  // Fallback simple registration
-  const simpleRegistration = () => {
-    console.log('=== SIMPLE REGISTRATION START ===');
-    const simpleUser = {
-      id: `user_${Date.now()}`,
-      name: `${formData.firstName} ${formData.lastName}`,
-      email: formData.email,
-      balance: 0,
-    };
-
-    setUser(simpleUser);
-    console.log('Simple registration complete, navigating...');
-
-    setTimeout(() => {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'AIHome' }],
-      });
-    }, 100);
   };
 
   const renderAccountInfoStep = () => (
@@ -474,9 +384,16 @@ const RegisterScreen = () => {
         {capitalOneMatchData && (
           <View style={styles.matchInfo}>
             <Text style={styles.matchTitle}>Matched Account Details:</Text>
-            <Text style={styles.matchText}>Name: {capitalOneMatchData.customer.first_name} {capitalOneMatchData.customer.last_name}</Text>
-            <Text style={styles.matchText}>Accounts: {capitalOneMatchData.accounts.length}</Text>
-            <Text style={styles.matchText}>Total Balance: ${capitalOneMatchData.accounts.reduce((sum: number, acc: any) => sum + acc.balance, 0).toLocaleString()}</Text>
+            <Text style={styles.matchText}>Name: {capitalOneMatchData.first_name} {capitalOneMatchData.last_name}</Text>
+            <Text style={styles.matchText}>ZIP: {capitalOneMatchData.address?.zip || 'N/A'}</Text>
+            <Text style={styles.matchText}>Customer ID: {capitalOneMatchData._id}</Text>
+            {typeof matchConfidence === 'number' && (
+              <Text style={styles.matchText}>Confidence: {(matchConfidence * 100).toFixed(1)}%</Text>
+            )}
+            {matchReason && (
+              <Text style={styles.matchText}>Reason: {matchReason}</Text>
+            )}
+            <Text style={styles.matchText}>Accounts: {capitalOneMatchData.accounts?.length ?? 0}</Text>
           </View>
         )}
       </View>
@@ -493,10 +410,10 @@ const RegisterScreen = () => {
         <TouchableOpacity
           style={[
             styles.primaryButton,
-            (!formData.firstName || !formData.lastName || !formData.zip) && styles.primaryButtonDisabled,
+            ((!formData.firstName || !formData.lastName || !formData.zip) || isLoading) && styles.primaryButtonDisabled,
           ]}
-          onPress={simpleRegistration}
-          disabled={!formData.firstName || !formData.lastName || !formData.zip}
+          onPress={handleCompleteRegistration}
+          disabled={!formData.firstName || !formData.lastName || !formData.zip || isLoading}
         >
           <Text style={styles.primaryButtonText}>Complete Registration</Text>
         </TouchableOpacity>

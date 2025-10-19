@@ -8,8 +8,10 @@ from typing import Dict, Any, List, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 from ..services.elevenlabs_client import call_agent_with_context
 from ..services.speech_to_text import speech_to_text_service
-from ..orchestrator.tool_executor import ToolExecutor, determine_tools_for_agent
-from ..orchestrator.router import route_to_agent
+from ..services.conversation_store import conversation_store
+from ..services.audio_processor import AudioAnalyzer, AudioBuffer
+from ..orchestrator.tool_executor import ToolExecutor
+from ..orchestrator.llm_orchestrator import llm_orchestrator
 from ..tools.nessie import TOOLS_REGISTRY
 from ..config import config
 
@@ -20,24 +22,45 @@ class WebSocketConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.conversation_sessions: Dict[str, Dict] = {}
-        self.audio_buffers: Dict[str, List[bytes]] = {}
+        self.audio_buffers: Dict[str, AudioBuffer] = {}
+        self.audio_analyzers: Dict[str, AudioAnalyzer] = {}
 
     async def connect(self, websocket: WebSocket, customer_id: str):
         """Accept a new WebSocket connection."""
         await websocket.accept()
         self.active_connections[customer_id] = websocket
-        self.audio_buffers[customer_id] = []
+        
+        # Initialize audio analyzer and buffer for silence detection
+        analyzer = AudioAnalyzer(
+            sample_rate=16000,
+            sample_width=2,  # 16-bit
+            channels=1,  # mono
+            silence_threshold=500.0,  # RMS threshold
+            silence_duration=1.0  # 1 second of silence
+        )
+        self.audio_analyzers[customer_id] = analyzer
+        self.audio_buffers[customer_id] = AudioBuffer(analyzer)
 
-        # Initialize conversation session
+        # Generate unique session ID
+        session_id = f"session_{customer_id}_{int(time.time())}"
+        
+        # Initialize conversation session in memory
         self.conversation_sessions[customer_id] = {
-            "session_id": f"session_{int(time.time())}",
+            "session_id": session_id,
             "conversation_history": [],
             "current_agent": None,
             "last_activity": time.time(),
             "context_cache": {}
         }
+        
+        # Persist session to conversation store
+        await conversation_store.initialize_session(
+            session_id=session_id,
+            customer_id=customer_id,
+            metadata={"connection_type": "websocket", "user_agent": "mobile_app"}
+        )
 
-        print(f"✅ WebSocket connected for customer: {customer_id}")
+        print(f"✅ WebSocket connected for customer: {customer_id}, session: {session_id}")
 
     def disconnect(self, customer_id: str):
         """Handle WebSocket disconnection."""
@@ -45,6 +68,8 @@ class WebSocketConnectionManager:
             del self.active_connections[customer_id]
         if customer_id in self.audio_buffers:
             del self.audio_buffers[customer_id]
+        if customer_id in self.audio_analyzers:
+            del self.audio_analyzers[customer_id]
         if customer_id in self.conversation_sessions:
             del self.conversation_sessions[customer_id]
         print(f"❌ WebSocket disconnected for customer: {customer_id}")
@@ -53,18 +78,27 @@ class WebSocketConnectionManager:
         """Get conversation session for customer."""
         return self.conversation_sessions.get(customer_id)
 
-    def add_audio_chunk(self, customer_id: str, audio_data: bytes):
-        """Add audio chunk to buffer for streaming STT."""
+    def add_audio_chunk(self, customer_id: str, audio_data: bytes) -> tuple:
+        """Add audio chunk to buffer and check for speech completion.
+        
+        Returns:
+            Tuple of (should_process, audio_segments)
+        """
         if customer_id in self.audio_buffers:
-            self.audio_buffers[customer_id].append(audio_data)
+            audio_buffer = self.audio_buffers[customer_id]
+            return audio_buffer.add_chunk(audio_data)
+        return False, []
 
-    def get_audio_buffer(self, customer_id: str) -> List[bytes]:
-        """Get and clear audio buffer for processing."""
+    def get_audio_buffer(self, customer_id: str) -> bytes:
+        """Get combined audio buffer."""
         if customer_id in self.audio_buffers:
-            buffer = self.audio_buffers[customer_id]
-            self.audio_buffers[customer_id] = []
-            return buffer
-        return []
+            return self.audio_buffers[customer_id].get_combined_audio()
+        return b''
+    
+    def clear_audio_buffer(self, customer_id: str):
+        """Clear audio buffer for customer."""
+        if customer_id in self.audio_buffers:
+            self.audio_buffers[customer_id].clear()
 
     async def send_to_client(self, customer_id: str, message: Dict[str, Any]):
         """Send message to specific client."""
@@ -166,16 +200,33 @@ class AudioStreamProcessor:
             "content": transcribed_text,
             "timestamp": time.time()
         })
+        
+        # Persist user message to conversation store
+        await conversation_store.append_message(
+            session_id=session["session_id"],
+            role="user",
+            content=transcribed_text,
+            extras={"transcription_metadata": transcription_result}
+        )
 
-        # Step 1: Route to agent
-        routing = route_to_agent(transcribed_text)
+        # Step 1: Route to agent using LLM orchestrator
+        routing = await llm_orchestrator.route(
+            user_message=transcribed_text,
+            conversation_history=session["conversation_history"]
+        )
         selected_agent = routing["agent"]
         session["current_agent"] = selected_agent
 
-        # Step 2: Execute tools in parallel
-        tool_calls = determine_tools_for_agent(selected_agent, customer_id)
+        # Step 2: Execute tools (LLM determines which tools)
+        tool_calls = llm_orchestrator.tools_to_calls(routing["tools"], customer_id)
         tool_executor = ToolExecutor(TOOLS_REGISTRY)
         context = await tool_executor.execute_parallel(tool_calls)
+        
+        # Store context snapshot
+        await conversation_store.add_context_snapshot(
+            session_id=session["session_id"],
+            context=context
+        )
 
         # Step 3: Call agent
         if config.has_elevenlabs_agents():
@@ -199,6 +250,18 @@ class AudioStreamProcessor:
             "agent": selected_agent,
             "timestamp": time.time()
         })
+        
+        # Persist agent response to conversation store
+        await conversation_store.append_message(
+            session_id=session["session_id"],
+            role="assistant",
+            content=response_text,
+            agent=selected_agent,
+            extras={
+                "routing_reasoning": routing["reasoning"],
+                "using_real_agent": config.has_elevenlabs_agents()
+            }
+        )
 
         return {
             "transcribed_text": transcribed_text,
@@ -264,10 +327,7 @@ async def handle_websocket_audio_stream(websocket: WebSocket, customer_id: str):
             "message": "Ready for audio streaming"
         })
 
-        # Main audio processing loop
-        audio_buffer = []
-        last_audio_time = time.time()
-
+        # Main audio processing loop with amplitude-based silence detection
         while True:
             try:
                 # Receive message (could be text or binary audio)
@@ -281,15 +341,43 @@ async def handle_websocket_audio_stream(websocket: WebSocket, customer_id: str):
                     data = json.loads(message["text"])
 
                     if data.get("type") == "start_conversation":
+                        # Clear any existing buffer
+                        connection_manager.clear_audio_buffer(customer_id)
                         await connection_manager.send_to_client(customer_id, {
                             "type": "listening_started",
                             "message": "Listening... Speak now"
                         })
 
+                    elif data.get("type") == "stop_conversation":
+                        # Process any remaining audio when stop is triggered
+                        combined_audio = connection_manager.get_audio_buffer(customer_id)
+                        
+                        if combined_audio and len(combined_audio) > 8000:
+                            transcription_result = await audio_processor.process_audio_stream(
+                                customer_id, [combined_audio]
+                            )
+
+                            if transcription_result and transcription_result.get("text"):
+                                await connection_manager.send_to_client(customer_id, {
+                                    "type": "transcription_result",
+                                    **transcription_result
+                                })
+
+                                result = await audio_processor.process_conversation_turn(
+                                    customer_id, transcription_result
+                                )
+
+                                await connection_manager.send_to_client(customer_id, {
+                                    "type": "conversation_turn_complete",
+                                    **result
+                                })
+                        
+                        connection_manager.clear_audio_buffer(customer_id)
+
                     elif data.get("type") == "text_message":
                         # Process text message directly
                         result = await audio_processor.process_conversation_turn(
-                            customer_id, data["message"]
+                            customer_id, {"text": data["message"], "confidence": 1.0}
                         )
 
                         await connection_manager.send_to_client(customer_id, {
@@ -298,19 +386,22 @@ async def handle_websocket_audio_stream(websocket: WebSocket, customer_id: str):
                         })
 
                 elif message["type"] == "websocket.receive_bytes":
-                    # Handle binary audio data
+                    # Handle binary audio data with amplitude-based silence detection
                     audio_data = message["bytes"]
-                    current_time = time.time()
+                    
+                    # Add chunk to buffer and check if speech segment is complete
+                    should_process, audio_segments = connection_manager.add_audio_chunk(
+                        customer_id, audio_data
+                    )
 
-                    # Add to buffer
-                    audio_buffer.append(audio_data)
-                    last_audio_time = current_time
-
-                    # Check for silence (simulate with timing)
-                    if current_time - last_audio_time > audio_processor.silence_threshold and audio_buffer:
-                        # Process accumulated audio
+                    if should_process and audio_segments:
+                        # Silence detected, process accumulated audio
+                        combined_audio = b''.join(audio_segments)
+                        
+                        print(f"🔊 Processing audio segment ({len(combined_audio)} bytes) after silence detected")
+                        
                         transcription_result = await audio_processor.process_audio_stream(
-                            customer_id, audio_buffer
+                            customer_id, [combined_audio]
                         )
 
                         if transcription_result and transcription_result.get("text"):
@@ -339,8 +430,6 @@ async def handle_websocket_audio_stream(websocket: WebSocket, customer_id: str):
                                 "type": "listening_started",
                                 "message": "I'm listening for your next question..."
                             })
-
-                        audio_buffer = []
 
             except WebSocketDisconnect:
                 break

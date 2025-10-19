@@ -43,6 +43,8 @@ class Config:
     CACHE_FILE_PATH = os.getenv("CACHE_FILE_PATH", "data/cache/customer_data.json")
     CONVERSATION_DATA_DIR = os.getenv("CONVERSATION_DATA_DIR", "data/conversations")
     USER_DATA_FILE = os.getenv("USER_DATA_FILE", "data/rebank_users.json")
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    NESSIE_DATA_PATH = os.getenv("NESSIE_DATA_PATH", str(_PROJECT_ROOT / "nessie" / "user.json"))
     
     # Server configuration
     HOST = os.getenv("HOST", "0.0.0.0")

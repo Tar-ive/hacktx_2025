@@ -185,6 +185,13 @@ const AIHomeScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={[styles.actionButton, styles.primaryButton]}
+              onPress={() => navigation.navigate('VoiceConversation')}
+            >
+              <Text style={styles.primaryButtonText}>🎤 Start Voice Chat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryButton]}
               onPress={handleViewDashboard}
             >
               <Text style={styles.primaryButtonText}>📊 View Dashboard</Text>

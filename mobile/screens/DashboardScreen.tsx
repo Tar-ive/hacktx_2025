@@ -1,22 +1,147 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import LinearGradient from '../components/LinearGradientWrapper';
 import { useAuthStore } from '../stores/authStore';
 import AgentOrb from '../components/AgentOrb';
 import TransactionList from '../components/TransactionList';
 import SpendingAnalytics from '../components/SpendingAnalytics';
 import { useResponsive } from '../hooks/useResponsive';
+import { DataService, UserFinancialData } from '../services/DataService';
 
 const DashboardScreen = ({ navigation }: { navigation: any }) => {
   const responsive = useResponsive();
   const { user, logout } = useAuthStore();
 
-  // State for user data
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [budgets, setBudgets] = useState<any[]>([]);
+  // State for user data from centralized storage
+  const [financialData, setFinancialData] = useState<UserFinancialData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize data based on user's Capital One data or fallback to demo data
+  // Load financial data from centralized storage
+  const loadData = async () => {
+    if (!user?.customerId) {
+      setLoading(false);
+      setError('No customer ID found. Please log in again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await DataService.getUserData(user.customerId);
+      setFinancialData(data);
+      
+      console.log('✓ Financial data loaded for customer:', user.customerId);
+    } catch (err) {
+      console.error('❌ Error loading financial data:', err);
+      setError('Failed to load financial data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pull to refresh
+  const onRefresh = async () => {
+    if (!user?.customerId) return;
+    
+    try {
+      setRefreshing(true);
+      await DataService.refreshData(user.customerId);
+      await loadData();
+    } catch (err) {
+      console.error('❌ Error refreshing:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [user?.customerId]);
+
+  // Prepare data for components
+  const getTransactions = () => {
+    if (!financialData) return [];
+    
+    return financialData.transactions_30d.map((tx: any) => ({
+      id: tx._id || tx.id,
+      date: new Date(tx.purchase_date || tx.transaction_date).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      merchant: tx.description || tx.merchant_name || 'Transaction',
+      amount: tx.amount || 0,
+      category: tx.category || 'other',
+      tags: []
+    })).slice(0, 10);
+  };
+
+  const getAccounts = () => {
+    if (!financialData) return [];
+    
+    return financialData.accounts.map((account: any) => ({
+      id: account._id || account.id,
+      type: account.type,
+      balance: account.balance,
+      nickname: account.nickname || `${account.type} Account`
+    }));
+  };
+
+  const getBudgets = () => {
+    if (!financialData?.spending_by_category) return [];
+    
+    return Object.entries(financialData.spending_by_category).map(([category, spent]) => ({
+      category: category.charAt(0).toUpperCase() + category.slice(1),
+      limit: Math.max((spent as number) * 1.2, 200),
+      spent: spent as number,
+      remaining: Math.max((spent as number) * 1.2, 200) - (spent as number)
+    }));
+  };
+
+  const getTotalBalance = () => {
+    return financialData?.balance?.total_balance || 0;
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <LinearGradient colors={['#0F2027', '#203A43', '#2C5364']} style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={styles.loadingText}>Loading your financial data...</Text>
+      </LinearGradient>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <LinearGradient colors={['#0F2027', '#203A43', '#2C5364']} style={styles.loadingContainer}>
+        <Text style={styles.errorText}>❌ {error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    );
+  }
+
+  const transactions = getTransactions();
+  const accounts = getAccounts();
+  const budgets = getBudgets();
+  const totalBalance = getTotalBalance();
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const handleAddTag = (transactionId: string, tag: string) => {
+    console.log('Adding tag:', tag, 'to transaction:', transactionId);
+    // Tags could be saved to backend here
+  };
+
+  /* OLD REMOVED CODE - now using centralized DataService
   useEffect(() => {
     if (user?.capitalOneData) {
       // Use real Capital One data
@@ -120,23 +245,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
       ]);
     }
   }, [user]);
-
-  const handleAddTag = (transactionId: string, tag: string) => {
-    console.log('Dashboard handleAddTag called:', transactionId, tag);
-    setTransactions(prev =>
-      prev.map(tx =>
-        tx.id === transactionId
-          ? { ...tx, tags: [...(tx.tags || []), tag] }
-          : tx
-      )
-    );
-  };
-
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-
-  const handleLogout = () => {
-    logout();
-  };
+  */  // END OLD CODE
 
   return (
     <View style={styles.container}>
@@ -167,6 +276,15 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
       <ScrollView
         style={[styles.content, responsive.isDesktop && styles.contentDesktop]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#fff"
+            title="Pull to refresh"
+            titleColor="#fff"
+          />
+        }
       >
         {/* Accounts Overview */}
         <View style={styles.card}>
@@ -448,6 +566,36 @@ const styles = StyleSheet.create({
   contentDesktop: {
     paddingHorizontal: 40,
     paddingTop: 30,
+  },
+  
+  // Loading and error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  errorText: {
+    color: '#ff4757',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

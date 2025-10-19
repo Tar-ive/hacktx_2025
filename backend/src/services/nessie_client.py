@@ -39,6 +39,10 @@ class NessieClient:
         """Get all accounts for a customer."""
         return await self._request("GET", f"/customers/{customer_id}/accounts")
 
+    async def list_customers(self) -> List[Dict]:
+        """List all customers available for the API key."""
+        return await self._request("GET", "/customers")
+
     async def get_account(self, account_id: str) -> Dict:
         """Get specific account details."""
         return await self._request("GET", f"/accounts/{account_id}")

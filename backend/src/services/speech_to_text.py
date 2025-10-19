@@ -92,6 +92,12 @@ class GeminiSpeechToText:
             }
         """
         try:
+            # Detect audio format
+            if audio_data[:4] == b'\x1a\x45\xdf\xa3':
+                audio_format = "webm"  # WebM magic bytes
+            else:
+                audio_format = "wav"  # Default to WAV
+            
             # Build context-aware prompt
             context_prompt = "You are a banking assistant transcribing a user's speech.\n\n"
 
@@ -117,7 +123,7 @@ class GeminiSpeechToText:
             }"""
 
             audio_parts = {
-                "mime_type": "audio/wav",
+                "mime_type": f"audio/{audio_format}",
                 "data": base64.b64encode(audio_data).decode('utf-8')
             }
 

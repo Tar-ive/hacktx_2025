@@ -36,8 +36,13 @@ class NessieBuffer:
                 return False
 
             # Parse cached_at timestamp
+            from datetime import timezone
+            # Ensure cached_time is timezone-aware
             cached_time = datetime.fromisoformat(cached_at.replace('Z', '+00:00'))
-            age_seconds = (datetime.now().astimezone() - cached_time).total_seconds()
+            if cached_time.tzinfo is None:
+                cached_time = cached_time.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            age_seconds = (now - cached_time).total_seconds()
 
             return age_seconds < self.ttl
 

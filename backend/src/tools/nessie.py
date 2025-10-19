@@ -6,6 +6,7 @@ These tools are called by the orchestrator, NOT by agents directly.
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from ..services.nessie_client import nessie_client
+from ..services.nessie_data_repository import nessie_data_repo
 from ..cache.manager import CacheManager
 from ..config import config
 
@@ -15,6 +16,11 @@ cache = CacheManager()
 
 async def get_customer_info(customer_id: str) -> Dict[str, Any]:
     """Get customer profile information."""
+    if nessie_data_repo.has_data():
+        customer = nessie_data_repo.get_customer(customer_id)
+        if customer:
+            return customer
+
     async def fetcher():
         return await nessie_client.get_customer(customer_id)
 
@@ -24,25 +30,49 @@ async def get_customer_info(customer_id: str) -> Dict[str, Any]:
 
 async def get_all_accounts(customer_id: str) -> List[Dict]:
     """Get all accounts for a customer."""
+    if nessie_data_repo.has_data():
+        accounts = nessie_data_repo.get_accounts(customer_id)
+        if accounts is not None:
+            return accounts
+
     async def fetcher():
         data = await nessie_client.get_full_customer_data(customer_id)
         return data["accounts"]
 
     result = await cache.get_with_fallback(f"accounts:{customer_id}", fetcher)
-    return result["data"]
+    # Handle both wrapped and unwrapped responses
+    accounts = result.get("data") if isinstance(result, dict) and "data" in result else result
+    return accounts if isinstance(accounts, list) else []
 
 
 async def get_account_balance(customer_id: str) -> Dict[str, float]:
     """Get total balance across all accounts."""
     accounts = await get_all_accounts(customer_id)
+    
+    # Ensure accounts is a list
+    if not isinstance(accounts, list):
+        return {"total_balance": 0, "total_rewards": 0, "num_accounts": 0, "accounts": []}
 
-    total_balance = sum(acc.get("balance", 0) for acc in accounts)
-    total_rewards = sum(acc.get("rewards", 0) for acc in accounts)
+    total_balance = sum(acc.get("balance", 0) if isinstance(acc, dict) else 0 for acc in accounts)
+    total_rewards = sum(acc.get("rewards", 0) if isinstance(acc, dict) else 0 for acc in accounts)
+
+    account_summaries = []
+    for acc in accounts:
+        if not isinstance(acc, dict):
+            continue
+        account_summaries.append({
+            "account_id": acc.get("_id"),
+            "type": acc.get("type"),
+            "balance": acc.get("balance", 0),
+            "nickname": acc.get("nickname"),
+            "rewards": acc.get("rewards", 0)
+        })
 
     return {
         "total_balance": total_balance,
         "total_rewards": total_rewards,
-        "num_accounts": len(accounts)
+        "num_accounts": len(accounts),
+        "accounts": account_summaries
     }
 
 

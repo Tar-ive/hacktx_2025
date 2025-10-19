@@ -9,10 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Animated
+  Animated,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../stores/authStore';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 interface AgentChatScreenProps {
   route: {
@@ -23,45 +26,64 @@ interface AgentChatScreenProps {
   navigation: any;
 }
 
+interface Message {
+  type: 'user' | 'agent';
+  text: string;
+  timestamp: Date;
+  agent?: string;
+  context?: any;
+}
+
 const AgentChatScreen = ({ route, navigation }: AgentChatScreenProps) => {
   const { user } = useAuthStore();
   const { agentId } = route.params;
-  const [messages, setMessages] = useState<Array<{type: 'user' | 'agent', text: string, timestamp: Date}>>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
-  // Agent data
+  // Agent data (UI display info only - backend handles routing)
   const agents = {
     nebula: {
       name: 'Nebula',
       color: '#6B46C1',
       description: 'Financial Strategy & Insights',
-      greeting: 'Hello! I\'m Nebula, your financial strategy assistant. How can I help you with your investment goals today?'
+      greeting: 'Hello! I\'m Nebula, your financial strategy assistant. I\'ll analyze your real financial data to provide personalized advice. What would you like to know?'
     },
     atlas: {
       name: 'Atlas',
       color: '#2563EB',
       description: 'Budget Management & Planning',
-      greeting: 'Hi there! Atlas here, ready to help you manage your budget and plan for the future. What\'s on your mind?'
+      greeting: 'Hi! Atlas here. I have access to your actual spending and account data. Ask me anything about your finances!'
     },
     nova: {
       name: 'Nova',
       color: '#DC2626',
       description: 'Spending Patterns & Habits',
-      greeting: 'Greetings! I\'m Nova, specializing in spending analysis and financial habits. Let\'s explore your financial behavior together!'
+      greeting: 'Hello! I\'m Nova. I can see your real spending patterns and transactions. How can I help you understand your financial habits?'
     },
     sentinel: {
       name: 'Sentinel',
       color: '#059669',
       description: 'Security & Fraud Detection',
-      greeting: 'Secure connection established. I\'m Sentinel, your financial security companion. How can I protect your assets today?'
+      greeting: 'Secure connection established. I\'m Sentinel, monitoring your actual account activity. What security concerns can I address?'
     }
   };
 
   const agent = agents[agentId as keyof typeof agents];
 
   useEffect(() => {
+    // Check if user is properly logged in
+    if (!user?.customerId) {
+      Alert.alert(
+        'Login Required',
+        'Please log in with your account to use chat features.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+      return;
+    }
+
     // Welcome animation
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -79,55 +101,73 @@ const AgentChatScreen = ({ route, navigation }: AgentChatScreenProps) => {
     }, 1000);
   }, []);
 
-  const handleSendMessage = () => {
-    if (inputText.trim() === '') return;
+  const handleSendMessage = async () => {
+    if (inputText.trim() === '' || !user?.customerId) return;
 
+    const messageText = inputText.trim();
+    
     // Add user message
-    const userMessage = {
-      type: 'user' as const,
-      text: inputText.trim(),
+    const userMessage: Message = {
+      type: 'user',
+      text: messageText,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsTyping(true);
+    setError(null);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responses = {
-        nebula: [
-          'I\'ve analyzed your spending patterns and found opportunities for investment growth. Would you like to explore specific investment options?',
-          'Based on your current portfolio, I recommend diversifying into index funds for long-term growth.',
-          'Your financial health score is 8.2/10. Excellent work on maintaining savings discipline!'
-        ],
-        atlas: [
-          'I\'ve updated your monthly budget forecast. You\'re on track to save 15% more this month!',
-          'Your dining out expenses are 23% higher than last month. Would you like me to suggest meal planning strategies?',
-          'Great job staying under your entertainment budget! You have $150 remaining for this category.'
-        ],
-        nova: [
-          'I notice you tend to spend more on weekends. Let\'s create a weekend budget strategy together.',
-          'Your coffee spending pattern shows consistent weekday purchases. Consider a subscription to save money.',
-          'Your transportation costs have decreased by 18% since last month. Great progress!'
-        ],
-        sentinel: [
-          'I\'ve detected and blocked a suspicious transaction attempt on your account. Your funds are secure.',
-          'Your account security score is 9.8/10. All protective measures are active and up to date.',
-          'I recommend enabling two-factor authentication for your primary banking app for enhanced security.'
-        ]
+    try {
+      // Call backend API - this is where ALL intelligence happens!
+      const response = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_id: user.customerId,
+          message: messageText,
+          session_id: `agent_chat_${user.customerId}_${Date.now()}`
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Add agent response from backend
+      const agentMessage: Message = {
+        type: 'agent',
+        text: data.response || 'I received your message and am processing it.',
+        timestamp: new Date(),
+        agent: data.agent,
+        context: data.context_used
       };
 
-      const agentResponses = responses[agentId as keyof typeof responses];
-      const randomResponse = agentResponses[Math.floor(Math.random() * agentResponses.length)];
+      setMessages(prev => [...prev, agentMessage]);
+      
+      console.log('✓ Backend response:', {
+        agent: data.agent,
+        tools_used: data.context_used?.tools_called,
+        execution_time: data.context_used?.execution_time_ms
+      });
 
+    } catch (err) {
+      console.error('❌ Error calling backend:', err);
+      setError('Failed to get response. Please try again.');
+      
+      // Add error message
       setMessages(prev => [...prev, {
         type: 'agent',
-        text: randomResponse,
+        text: '❌ Sorry, I\'m having trouble connecting to the server. Please try again.',
         timestamp: new Date()
       }]);
+    } finally {
       setIsTyping(false);
-    }, 2000);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -153,7 +193,9 @@ const AgentChatScreen = ({ route, navigation }: AgentChatScreenProps) => {
             </View>
             <View style={styles.headerText}>
               <Text style={styles.agentName}>{agent.name}</Text>
-              <Text style={styles.agentStatus}>Online • Ready to help</Text>
+              <Text style={styles.agentStatus}>
+                {error ? '⚠️ Connection issue' : '🔗 Connected to backend • Real data'}
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -173,12 +215,22 @@ const AgentChatScreen = ({ route, navigation }: AgentChatScreenProps) => {
                 message.type === 'user' ? styles.userMessage : styles.agentMessage
               ]}
             >
+              {message.agent && message.agent !== agentId && (
+                <Text style={styles.agentRoutedLabel}>
+                  🤖 Routed to {message.agent.charAt(0).toUpperCase() + message.agent.slice(1)}
+                </Text>
+              )}
               <Text style={[
                 styles.messageText,
                 message.type === 'user' ? styles.userMessageText : styles.agentMessageText
               ]}>
                 {message.text}
               </Text>
+              {message.context && (
+                <Text style={styles.contextLabel}>
+                  📊 Used: {message.context.tools_called?.join(', ') || 'real financial data'}
+                </Text>
+              )}
               <Text style={[
                 styles.messageTime,
                 message.type === 'user' ? styles.userMessageTime : styles.agentMessageTime
@@ -329,6 +381,20 @@ const styles = StyleSheet.create({
   typingText: {
     color: '#9CA3AF',
     fontStyle: 'italic',
+  },
+  agentRoutedLabel: {
+    fontSize: 11,
+    color: '#60A5FA',
+    fontWeight: '600',
+    marginBottom: 6,
+    opacity: 0.9,
+  },
+  contextLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    marginTop: 6,
+    opacity: 0.8,
   },
   inputContainer: {
     backgroundColor: '#1E293B',
