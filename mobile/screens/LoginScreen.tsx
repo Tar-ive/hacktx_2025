@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../stores/authStore';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface LoginFormData {
   email: string;
@@ -9,6 +10,7 @@ interface LoginFormData {
 }
 
 const LoginScreen = () => {
+  const responsive = useResponsive();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -31,7 +33,7 @@ const LoginScreen = () => {
 
   const validateForm = (): boolean => {
     // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(formData.email)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address');
       return false;
@@ -47,11 +49,17 @@ const LoginScreen = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    console.log('handleSubmit called with:', formData);
+    if (!validateForm()) {
+      console.log('Validation failed');
+      return;
+    }
 
     try {
+      console.log('Attempting login...');
       // Call auth store login function
       await login(formData.email, formData.password);
+      console.log('Login completed');
 
       // Navigation will happen automatically via App.tsx based on auth state
 
@@ -69,13 +77,13 @@ const LoginScreen = () => {
         colors={['#0066CC', '#004499']}
         style={styles.gradient}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, responsive.isDesktop && styles.scrollContentDesktop]}>
           <View style={styles.logoSection}>
-            <Text style={styles.logoText}>ReBank</Text>
-            <Text style={styles.tagline}>Banking Reimagined</Text>
+            <Text style={[styles.logoText, responsive.isDesktop && styles.logoTextDesktop]}>ReBank</Text>
+            <Text style={[styles.tagline, responsive.isDesktop && styles.taglineDesktop]}>Banking Reimagined</Text>
           </View>
 
-          <View style={styles.formSection}>
+          <View style={[styles.formSection, responsive.isDesktop && styles.formSectionDesktop]}>
             <Text style={styles.title}>
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </Text>
@@ -108,7 +116,10 @@ const LoginScreen = () => {
 
             <TouchableOpacity
               style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
+              onPress={() => {
+                console.log('Button clicked!');
+                handleSubmit();
+              }}
               disabled={isLoading}
             >
               <Text style={styles.submitButtonText}>
@@ -238,6 +249,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+
+  // Responsive styles
+  scrollContentDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  logoTextDesktop: {
+    fontSize: 64,
+  },
+  taglineDesktop: {
+    fontSize: 24,
+  },
+  formSectionDesktop: {
+    width: 400,
+    maxWidth: '90%',
   },
 });
 
