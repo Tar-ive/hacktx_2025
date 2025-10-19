@@ -93,7 +93,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#0066CC', '#004499']} style={styles.header}>
+        <LinearGradient colors={['#DC2626', '#B91C1C']} style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={handleBackToDashboard}>
               <Text style={styles.backButtonText}>← Back</Text>
@@ -102,7 +102,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
           </View>
         </LinearGradient>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0066CC" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading analytics...</Text>
         </View>
       </View>
@@ -113,7 +113,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   if (error) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#0066CC', '#004499']} style={styles.header}>
+        <LinearGradient colors={['#DC2626', '#B91C1C']} style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={handleBackToDashboard}>
               <Text style={styles.backButtonText}>← Back</Text>
@@ -137,7 +137,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#0066CC', '#004499']}
+        colors={['#aa3a3aff', '#aa3a3aff']}
         style={styles.header}
       >
         <View style={styles.headerContent}>
@@ -162,7 +162,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#0066CC"
+            tintColor="#DC2626"
             title="Pull to refresh"
             titleColor="#666"
           />
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionButton: {
-    backgroundColor: '#f0f7ff',
+    backgroundColor: '#fef2f2',
     padding: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     minWidth: '45%',
   },
   actionButtonText: {
-    color: '#0066CC',
+    color: '#DC2626',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#0066CC',
+    backgroundColor: '#DC2626',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

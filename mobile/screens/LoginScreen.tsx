@@ -71,15 +71,63 @@ const LoginScreen = () => {
     }
   };
 
+  const starDots = React.useMemo(
+    () => (
+      [
+        { top: '6%', left: '20%', size: 3, opacity: 0.7 },
+        { top: '14%', right: '18%', size: 2, opacity: 0.55 },
+        { top: '32%', left: '28%', size: 2, opacity: 0.6 },
+        { top: '40%', right: '24%', size: 3, opacity: 0.65 },
+        { bottom: '38%', left: '16%', size: 2, opacity: 0.5 },
+        { bottom: '28%', right: '30%', size: 2, opacity: 0.55 },
+        { bottom: '16%', left: '24%', size: 3, opacity: 0.6 },
+        { top: '22%', right: '48%', size: 2, opacity: 0.5 },
+      ]
+    ),
+    []
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={['#0066CC', '#004499']}
+        colors={['#070B16', '#101623', '#1b2536']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
+        <View style={styles.celestialBackdrop}>
+          {starDots.map((dot, index) => (
+            <View
+              // eslint-disable-next-line react/no-array-index-key
+              key={`login-star-${index}`}
+              style={[
+                styles.starDot,
+                {
+                  top: dot.top,
+                  bottom: dot.bottom,
+                  left: dot.left,
+                  right: dot.right,
+                  width: dot.size,
+                  height: dot.size,
+                  borderRadius: dot.size / 2,
+                  opacity: dot.opacity,
+                },
+              ]}
+            />
+          ))}
+          <LinearGradient
+            colors={['rgba(79, 70, 229, 0.2)', 'transparent']}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={styles.mist}
+          />
+          <View style={styles.glowOne} />
+          <View style={styles.glowTwo} />
+        </View>
+
         <ScrollView contentContainerStyle={[styles.scrollContent, responsive.isDesktop && styles.scrollContentDesktop]}>
           <View style={styles.logoSection}>
             <Text style={[styles.logoText, responsive.isDesktop && styles.logoTextDesktop]}>ReBank</Text>
@@ -88,8 +136,9 @@ const LoginScreen = () => {
 
           <View style={[styles.formSection, responsive.isDesktop && styles.formSectionDesktop]}>
             <Text style={styles.title}>
-              Welcome Back
+              Welcome Back, Voyager
             </Text>
+            <Text style={styles.subtitle}>Log in to let Gemini pick up where you left off.</Text>
 
             <View style={styles.inputContainer}>
               <TextInput
@@ -159,6 +208,61 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
+  celestialBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  starDot: {
+    position: 'absolute',
+    backgroundColor: 'rgba(226, 232, 240, 0.9)',
+    shadowColor: '#e0f2fe',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  mist: {
+    position: 'absolute',
+    top: -120,
+    left: -80,
+    right: -80,
+    height: '50%',
+    opacity: 0.4,
+  },
+  glowOne: {
+    position: 'absolute',
+    top: '18%',
+    left: '12%',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+    opacity: 0.4,
+    shadowColor: 'rgba(56, 189, 248, 0.6)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  glowTwo: {
+    position: 'absolute',
+    bottom: '14%',
+    right: '16%',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(129, 140, 248, 0.2)',
+    opacity: 0.35,
+    shadowColor: 'rgba(99, 102, 241, 0.6)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 24,
+    elevation: 10,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -172,16 +276,16 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#e0f2fe',
     marginBottom: 10,
   },
   tagline: {
     fontSize: 18,
-    color: '#B3D1FF',
+    color: 'rgba(191, 219, 254, 0.75)',
     textAlign: 'center',
   },
   formSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
     borderRadius: 20,
     padding: 30,
     shadowColor: '#000',
@@ -190,41 +294,53 @@ const styles = StyleSheet.create({
       height: 4,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+    shadowRadius: 18,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.18)',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#0066CC',
+    color: '#bfdbfe',
     textAlign: 'center',
     marginBottom: 30,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(226, 232, 240, 0.7)',
+    textAlign: 'center',
+    marginBottom: 24,
   },
   inputContainer: {
     marginBottom: 20,
   },
   input: {
     height: 50,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    backgroundColor: 'rgba(8, 11, 19, 0.8)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
     fontSize: 16,
-    color: '#333',
+    color: '#e2e8f0',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(148, 163, 184, 0.3)',
   },
   submitButton: {
     height: 50,
-    backgroundColor: '#0066CC',
-    borderRadius: 10,
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 20,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(148, 163, 184, 0.4)',
   },
   submitButtonText: {
     color: '#fff',
@@ -235,18 +351,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonText: {
-    color: '#0066CC',
+    color: '#60a5fa',
     fontSize: 14,
   },
   demoNotice: {
     marginTop: 20,
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 10,
+    padding: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    borderRadius: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(94, 234, 212, 0.2)',
   },
   demoNoticeText: {
-    color: '#fff',
+    color: 'rgba(240, 249, 255, 0.85)',
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
