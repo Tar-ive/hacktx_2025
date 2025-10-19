@@ -74,14 +74,14 @@ const LoginScreen = () => {
   const starDots = React.useMemo(
     () => (
       [
-        { top: '6%', left: '20%', size: 3, opacity: 0.7 },
-        { top: '14%', right: '18%', size: 2, opacity: 0.55 },
-        { top: '32%', left: '28%', size: 2, opacity: 0.6 },
-        { top: '40%', right: '24%', size: 3, opacity: 0.65 },
-        { bottom: '38%', left: '16%', size: 2, opacity: 0.5 },
-        { bottom: '28%', right: '30%', size: 2, opacity: 0.55 },
-        { bottom: '16%', left: '24%', size: 3, opacity: 0.6 },
-        { top: '22%', right: '48%', size: 2, opacity: 0.5 },
+        { top: '6%' as const, left: '20%' as const, size: 3, opacity: 0.7 },
+        { top: '14%' as const, right: '18%' as const, size: 2, opacity: 0.55 },
+        { top: '32%' as const, left: '28%' as const, size: 2, opacity: 0.6 },
+        { top: '40%' as const, right: '24%' as const, size: 3, opacity: 0.65 },
+        { bottom: '38%' as const, left: '16%' as const, size: 2, opacity: 0.5 },
+        { bottom: '28%' as const, right: '30%' as const, size: 2, opacity: 0.55 },
+        { bottom: '16%' as const, left: '24%' as const, size: 3, opacity: 0.6 },
+        { top: '22%' as const, right: '48%' as const, size: 2, opacity: 0.5 },
       ]
     ),
     []
@@ -188,12 +188,6 @@ const LoginScreen = () => {
                 Need an account? Sign Up
               </Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.demoNotice}>
-            <Text style={styles.demoNoticeText}>
-              Demo Mode: Any email/password combination will work
-            </Text>
           </View>
         </ScrollView>
       </LinearGradient>
@@ -353,21 +347,6 @@ const styles = StyleSheet.create({
   toggleButtonText: {
     color: '#60a5fa',
     fontSize: 14,
-  },
-  demoNotice: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(94, 234, 212, 0.2)',
-  },
-  demoNoticeText: {
-    color: 'rgba(240, 249, 255, 0.85)',
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
 
   // Responsive styles

@@ -17,6 +17,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transactionTags, setTransactionTags] = useState<Record<string, string[]>>({});
 
   // Load financial data from centralized storage
   const loadData = async () => {
@@ -29,10 +30,10 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const data = await DataService.getUserData(user.customerId);
       setFinancialData(data);
-      
+
       console.log('✓ Financial data loaded for customer:', user.customerId);
     } catch (err) {
       console.error('❌ Error loading financial data:', err);
@@ -45,7 +46,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
   // Pull to refresh
   const onRefresh = async () => {
     if (!user?.customerId) return;
-    
+
     try {
       setRefreshing(true);
       await DataService.refreshData(user.customerId);
@@ -64,24 +65,27 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
   // Prepare data for components
   const getTransactions = () => {
     if (!financialData) return [];
-    
-    return financialData.transactions_30d.map((tx: any) => ({
-      id: tx._id || tx.id,
-      date: new Date(tx.purchase_date || tx.transaction_date).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      }),
-      merchant: tx.description || tx.merchant_name || 'Transaction',
-      amount: tx.amount || 0,
-      category: tx.category || 'other',
-      tags: []
-    })).slice(0, 10);
+
+    return financialData.transactions_30d.map((tx: any) => {
+      const txId = tx._id || tx.id;
+      return {
+        id: txId,
+        date: new Date(tx.purchase_date || tx.transaction_date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        }),
+        merchant: tx.description || tx.merchant_name || 'Transaction',
+        amount: tx.amount || 0,
+        category: tx.category || 'other',
+        tags: transactionTags[txId] || []
+      };
+    }).slice(0, 10);
   };
 
   const getAccounts = () => {
     if (!financialData) return [];
-    
+
     return financialData.accounts.map((account: any) => ({
       id: account._id || account.id,
       type: account.type,
@@ -92,7 +96,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const getBudgets = () => {
     if (!financialData?.spending_by_category) return [];
-    
+
     return Object.entries(financialData.spending_by_category).map(([category, spent]) => ({
       category: category.charAt(0).toUpperCase() + category.slice(1),
       limit: Math.max((spent as number) * 1.2, 200),
@@ -138,7 +142,23 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const handleAddTag = (transactionId: string, tag: string) => {
     console.log('Adding tag:', tag, 'to transaction:', transactionId);
+
+    // Update the local state to show the tag immediately
+    setTransactionTags(prevTags => {
+      const currentTags = prevTags[transactionId] || [];
+      // Don't add duplicate tags
+      if (currentTags.includes(tag)) {
+        return prevTags;
+      }
+
+      return {
+        ...prevTags,
+        [transactionId]: [...currentTags, tag]
+      };
+    });
+
     // Tags could be saved to backend here
+    // await DataService.addTransactionTag(transactionId, tag);
   };
 
 
@@ -146,7 +166,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#413d8cff', '#413d8cff']}
+        colors={['#4299E1', '#4299E1']}
         style={styles.header}
       >
         <View style={styles.headerContent}>
@@ -227,7 +247,7 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
                           {
                             width: `${percentage}%`,
                             backgroundColor: percentage > 90 ? '#ff4757' :
-                                           percentage > 70 ? '#ffa502' : '#2ed573'
+                              percentage > 70 ? '#ffa502' : '#2ed573'
                           }
                         ]}
                       />
@@ -304,7 +324,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   capitalOneBadge: {
-    backgroundColor: '#e31837', // Capital One red
+    backgroundColor: '#b02d41ff', // Capital One red
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -379,7 +399,7 @@ const styles = StyleSheet.create({
   accountBalance: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#7C3AED',
+    color: '#4299E1',
   },
   totalBalanceContainer: {
     marginTop: 16,
@@ -444,17 +464,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionButton: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: '#EBF8FF',
     padding: 12,
     borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
     minWidth: '45%',
   },
   actionButtonText: {
-    color: '#7C3AED',
+    color: '#4299E1',
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
   },
 
   // Responsive styles
@@ -462,7 +484,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     paddingTop: 30,
   },
-  
+
   // Loading and error states
   loadingContainer: {
     flex: 1,
@@ -482,7 +504,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#4299E1',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
