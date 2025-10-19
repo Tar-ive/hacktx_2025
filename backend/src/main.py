@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from .config import config
 from .api.routes import router
+from .api.conversation import router as conversation_router
 from .api.webhooks import router as webhooks_router
 from .orchestrator.triggers import validate_no_overlap
 from .orchestrator.websocket_handler import handle_websocket_audio_stream
@@ -77,6 +78,7 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router)
+app.include_router(conversation_router)
 app.include_router(webhooks_router)
 
 

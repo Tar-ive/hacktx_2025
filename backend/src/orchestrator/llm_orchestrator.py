@@ -227,6 +227,38 @@ Respond with routing decision JSON:"""
         
         return tool_calls
 
+    async def start_agent_conversation(
+        self,
+        agent_name: str,
+        customer_id: str,
+        session_id: Optional[str] = None,
+        requires_auth: bool = False,
+    ) -> Dict[str, Any]:
+        """Start an ElevenLabs conversation for the routed agent."""
+        from ..integrations.elevenlabs_integration import elevenlabs_integration
+
+        try:
+            await self.get_centralized_context(customer_id)
+            conversation = elevenlabs_integration.start_conversation(
+                agent_name=agent_name,
+                customer_id=customer_id,
+                session_id=session_id,
+                requires_auth=requires_auth,
+            )
+
+            return {
+                "success": True,
+                "agent": agent_name,
+                "conversation_id": getattr(conversation, "conversation_id", None),
+                "session_key": session_id,
+            }
+        except Exception as exc:
+            return {
+                "success": False,
+                "agent": agent_name,
+                "error": str(exc),
+            }
+
 
 # Global instance
 llm_orchestrator = LLMOrchestrator()

@@ -5,6 +5,9 @@ import { useAuthStore } from '../stores/authStore';
 import SpendingAnalytics from '../components/SpendingAnalytics';
 import { useResponsive } from '../hooks/useResponsive';
 import { DataService, UserFinancialData } from '../services/DataService';
+import { WebhookService } from '../services/WebhookService';
+import { WebhookTransformer } from '../services/WebhookTransformer';
+import { ConversationSummaryReady, PostCallTranscription } from '../types/WebhookTypes';
 
 const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   const responsive = useResponsive();
@@ -14,6 +17,7 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true);
   
   // Load financial data
   const loadData = async () => {
@@ -54,6 +58,63 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
   useEffect(() => {
     loadData();
   }, [user?.customerId]);
+
+  const handleWebhookUpdate = (webhook: PostCallTranscription) => {
+    console.log('🔄 Processing real-time webhook update');
+
+    const filters = {
+      userId: user?.customerId,
+      successOnly: false,
+      minCost: 0,
+      dateRange: {
+        start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        end: new Date(),
+      },
+    };
+
+    if (!WebhookTransformer.filterWebhookData(webhook, filters)) {
+      console.log('⏭️ Webhook filtered out');
+      return;
+    }
+
+    setFinancialData((prev) => WebhookTransformer.transformToFinancialData([webhook], prev || undefined));
+
+    Alert.alert('New Activity', 'A new call has been recorded', [{ text: 'OK' }]);
+  };
+
+  const handleSummaryReady = (event: ConversationSummaryReady) => {
+    if (!event.summary_bundle) {
+      return;
+    }
+    console.log('🧾 Applying conversation summary bundle');
+    setFinancialData((prev) => WebhookTransformer.applySummaryBundle(event.summary_bundle, prev));
+
+    if (event.summary_bundle.highlights?.length) {
+      Alert.alert('New Insights Ready', event.summary_bundle.highlights[0], [{ text: 'View' }]);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.customerId || !realtimeEnabled) {
+      return;
+    }
+
+    const websocketUrl =
+      process.env.EXPO_PUBLIC_WEBHOOK_WS_URL || 'ws://localhost:8000/ws';
+
+    WebhookService.connect(websocketUrl, user.customerId);
+    const unsubscribeTransactions = WebhookService.subscribe('post_call_transcription', handleWebhookUpdate);
+    const unsubscribeSummaries = WebhookService.subscribe(
+      'conversation_summary_ready',
+      handleSummaryReady,
+    );
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeSummaries();
+      WebhookService.disconnect();
+    };
+  }, [user?.customerId, realtimeEnabled]);
   
   // Transform data for SpendingAnalytics component
   const getTransactions = () => {
@@ -69,7 +130,9 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
       merchant: tx.description || tx.merchant_name || 'Transaction',
       amount: tx.amount || 0,
       category: tx.category || 'other',
-      tags: []
+      tags: [],
+      callDuration: tx.call_duration,
+      callStatus: tx.call_status,
     }));
   };
 
@@ -87,6 +150,10 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
         { text: 'Cancel', style: 'cancel' },
       ]
     );
+  };
+
+  const toggleRealtime = () => {
+    setRealtimeEnabled((prev) => !prev);
   };
   
   // Loading state
@@ -146,7 +213,17 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Spending Analytics</Text>
-            <Text style={styles.headerSubtitle}>Detailed insights & trends</Text>
+            <View style={styles.realtimeIndicator}>
+              <View
+                style={[
+                  styles.realtimeDot,
+                  realtimeEnabled ? styles.realtimeDotActive : undefined,
+                ]}
+              />
+              <Text style={styles.headerSubtitle}>
+                {realtimeEnabled ? 'Live Updates' : 'Updates Paused'}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.exportButton} onPress={handleExportReport}>
             <Text style={styles.exportButtonText}>📊 Export</Text>
@@ -174,17 +251,19 @@ const AnalyticsScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.actionsCard}>
           <Text style={styles.cardTitle}>Quick Actions</Text>
           <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={toggleRealtime}>
+              <Text style={styles.actionButtonText}>
+                {realtimeEnabled ? '⏸️ Pause Live' : '▶️ Resume Live'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Email report')}>
               <Text style={styles.actionButtonText}>📧 Email Report</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Set alerts')}>
               <Text style={styles.actionButtonText}>🎯 Set Alerts</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Get tips')}>
               <Text style={styles.actionButtonText}>💡 Get Tips</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionButtonText}>📈 Compare Periods</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -233,7 +312,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#B3D1FF',
     textAlign: 'center',
+  },
+  realtimeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 4,
+  },
+  realtimeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#666',
+    marginRight: 6,
+  },
+  realtimeDotActive: {
+    backgroundColor: '#4ade80',
   },
   exportButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',

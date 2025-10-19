@@ -49,6 +49,7 @@ class ConversationStore:
                 "messages": [],
                 "events": [],
                 "context_snapshots": [],
+                "summary_bundle": None,
             }
             await self._write_json(path, session)
             return session
@@ -108,6 +109,24 @@ class ConversationStore:
             await self._write_json(path, session)
             return entry
 
+    async def set_summary_bundle(
+        self,
+        session_id: str,
+        summary_bundle: Dict[str, Any],
+    ) -> None:
+        """Persist the latest structured summary bundle for a session."""
+        path = self._session_path(session_id)
+
+        lock = await self._lock_for(session_id)
+        async with lock:
+            session = await self._read_json(path)
+            if session is None:
+                raise ValueError(f"Session '{session_id}' not initialized")
+
+            session["summary_bundle"] = summary_bundle
+            session["updated_at"] = self._now_iso()
+            await self._write_json(path, session)
+
     async def add_context_snapshot(
         self,
         session_id: str,
@@ -161,6 +180,7 @@ class ConversationStore:
             "events": session.get("events", []),
             "context_snapshots": session.get("context_snapshots", []),
             "metadata": session.get("metadata", {}),
+            "summary_bundle": session.get("summary_bundle"),
         }
 
         return summary

@@ -47,6 +47,22 @@ export interface UserFinancialData {
     last_updated: string;
     version: string;
   };
+  total_spent?: number;
+  call_count?: number;
+  avg_call_cost?: number;
+  summary_highlights?: string[];
+  summary_follow_ups?: string[];
+  summary_audio?: {
+    url: string;
+    expires_at?: string;
+    codec?: string;
+  };
+  summary_agent?: string | null;
+  summary_tool_runs?: Array<{
+    tool: string;
+    latency_ms?: number | null;
+    cached?: boolean;
+  }>;
 }
 
 export class DataService {
