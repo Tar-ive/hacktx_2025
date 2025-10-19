@@ -10,8 +10,11 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AgentOrb from '../components/AgentOrb';
+import UserAvatar from '../components/UserAvatar';
+import { useAuthStore } from '../stores/authStore';
 
 const AIHomeScreen = ({ navigation }: { navigation: any }) => {
+  const { user } = useAuthStore();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -131,6 +134,24 @@ const AIHomeScreen = ({ navigation }: { navigation: any }) => {
             <Text style={styles.welcomeText}>Welcome to</Text>
             <Text style={styles.title}>ReBank AI</Text>
             <Text style={styles.subtitle}>Your Intelligent Financial Companion</Text>
+
+            {/* User Avatar Section */}
+            {user && user.avatarStyle && (
+              <View style={styles.userAvatarSection}>
+                <UserAvatar
+                  firstName={user.firstName || user.name.split(' ')[0]}
+                  lastName={user.lastName || user.name.split(' ').slice(1).join(' ') || ''}
+                  avatarStyle={user.avatarStyle}
+                  primaryColor={user.primaryColor || '#667eea'}
+                  secondaryColor={user.secondaryColor || '#764ba2'}
+                  size="medium"
+                  showLabel={true}
+                />
+                {user.capitalOneData && (
+                  <Text style={styles.capitalOneBadge}>✨ Capital One Connected</Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Agent Constellation */}
@@ -220,6 +241,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: height > 768 ? 60 : 40,
   },
+  userAvatarSection: {
+    alignItems: 'center',
+    marginTop: 30,
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  capitalOneBadge: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    padding: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
   welcomeText: {
     fontSize: width > 768 ? 24 : 20,
     color: '#94A3B8',
@@ -234,6 +276,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(59, 130, 246, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
+    // textShadow: '0 2px 4px rgba(59, 130, 246, 0.5)',
   },
   subtitle: {
     fontSize: width > 768 ? 18 : 16,

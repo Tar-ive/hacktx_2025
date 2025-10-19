@@ -10,6 +10,7 @@ import { useAuthStore } from './stores/authStore';
 
 // Import screens
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import AnalyticsScreen from './screens/AnalyticsScreen';
 import AIHomeScreen from './screens/AIHomeScreen';
@@ -18,6 +19,7 @@ import AgentChatScreen from './screens/AgentChatScreen';
 // Define navigation types
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined;
   AIHome: undefined;
   Dashboard: undefined;
   Analytics: undefined;
@@ -61,11 +63,18 @@ function Navigation() {
         }}
       >
         {!isAuthenticated ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
+          <>
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Register"
+              component={RegisterScreen}
+              options={{ headerShown: false }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen

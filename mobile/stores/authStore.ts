@@ -5,6 +5,13 @@ interface User {
   name: string;
   email: string;
   balance?: number;
+  firstName?: string;
+  lastName?: string;
+  zip?: string;
+  avatarStyle?: 'minimal' | 'futuristic';
+  primaryColor?: string;
+  secondaryColor?: string;
+  capitalOneData?: any;
 }
 
 interface AuthState {
@@ -18,6 +25,7 @@ interface AuthState {
   logout: () => void;
   clearError: () => void;
   setUser: (user: User) => void;
+  updateUserWithAvatar: (avatarData: any) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -78,5 +86,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user: User) => {
     set({ user, isAuthenticated: true });
+  },
+
+  updateUserWithAvatar: (avatarData: any) => {
+    const { user } = get();
+    if (user) {
+      const updatedUser: User = {
+        ...user,
+        firstName: avatarData.firstName,
+        lastName: avatarData.lastName,
+        zip: avatarData.zip,
+        avatarStyle: avatarData.avatarStyle,
+        primaryColor: avatarData.primaryColor,
+        secondaryColor: avatarData.secondaryColor,
+        capitalOneData: avatarData.capitalOneData,
+        name: `${avatarData.firstName} ${avatarData.lastName}`
+      };
+      set({ user: updatedUser });
+    }
+  },
+
+  register: (userData: User) => {
+    set({
+      user: userData,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null
+    });
   },
 }));

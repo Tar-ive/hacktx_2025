@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradient from '../components/LinearGradientWrapper';
 import { useAuthStore } from '../stores/authStore';
 import { useResponsive } from '../hooks/useResponsive';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../App';
 
 interface LoginFormData {
   email: string;
@@ -11,11 +14,11 @@ interface LoginFormData {
 
 const LoginScreen = () => {
   const responsive = useResponsive();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
   });
-  const [isSignUp, setIsSignUp] = useState(false);
 
   const { login, isLoading, isAuthenticated, error, clearError } = useAuthStore();
 
@@ -85,7 +88,7 @@ const LoginScreen = () => {
 
           <View style={[styles.formSection, responsive.isDesktop && styles.formSectionDesktop]}>
             <Text style={styles.title}>
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
+              Welcome Back
             </Text>
 
             <View style={styles.inputContainer}>
@@ -123,20 +126,17 @@ const LoginScreen = () => {
               disabled={isLoading}
             >
               <Text style={styles.submitButtonText}>
-                {isLoading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                {isLoading ? 'Please wait...' : 'Sign In'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.toggleButton}
-              onPress={() => setIsSignUp(!isSignUp)}
+              onPress={() => navigation.navigate('Register')}
               disabled={isLoading}
             >
               <Text style={styles.toggleButtonText}>
-                {isSignUp
-                  ? 'Already have an account? Sign In'
-                  : 'Need an account? Sign Up'
-                }
+                Need an account? Sign Up
               </Text>
             </TouchableOpacity>
           </View>
@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
   },
   title: {
     fontSize: 28,

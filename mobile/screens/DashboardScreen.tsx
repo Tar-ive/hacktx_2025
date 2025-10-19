@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradient from '../components/LinearGradientWrapper';
 import { useAuthStore } from '../stores/authStore';
 import AgentOrb from '../components/AgentOrb';
 import TransactionList from '../components/TransactionList';
@@ -11,17 +11,115 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
   const responsive = useResponsive();
   const { user, logout } = useAuthStore();
 
-  // Demo transactions with tagging capability
-  const [transactions, setTransactions] = useState([
-    { id: '1', date: 'Oct 18, 2024', merchant: 'Starbucks', amount: -5.50, category: 'coffee', tags: ['morning'] },
-    { id: '2', date: 'Oct 17, 2024', merchant: 'Target', amount: -87.43, category: 'shopping', tags: ['groceries'] },
-    { id: '3', date: 'Oct 16, 2024', merchant: 'Shell Gas Station', amount: -45.00, category: 'transport', tags: [] },
-    { id: '4', date: 'Oct 15, 2024', merchant: 'Chipotle', amount: -12.75, category: 'food', tags: ['lunch'] },
-    { id: '5', date: 'Oct 14, 2024', merchant: 'Amazon', amount: -29.99, category: 'shopping', tags: [] },
-    { id: '6', date: 'Oct 13, 2024', merchant: 'Salary Deposit', amount: 3500.00, category: 'income', tags: [] },
-    { id: '7', date: 'Oct 12, 2024', merchant: 'Netflix', amount: -15.99, category: 'entertainment', tags: ['subscription'] },
-    { id: '8', date: 'Oct 11, 2024', merchant: 'Whole Foods', amount: -67.23, category: 'groceries', tags: [] },
-  ]);
+  // State for user data
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [budgets, setBudgets] = useState<any[]>([]);
+
+  // Initialize data based on user's Capital One data or fallback to demo data
+  useEffect(() => {
+    if (user?.capitalOneData) {
+      // Use real Capital One data
+      const capitalOneData = user.capitalOneData;
+
+      // Use the accounts directly from the formatted data
+      const capitalOneAccounts = capitalOneData.accounts.map((account: any) => ({
+        id: account.id,
+        type: account.type,
+        balance: account.balance,
+        nickname: account.nickname || `${account.type} Account`
+      }));
+
+      // Transform all transactions from all accounts with proper type casting
+      const capitalOneTransactions = capitalOneData.accounts.flatMap((account: any) => {
+        const transactions: any[] = [];
+
+        // Add purchases (negative amounts)
+        if (account.purchases) {
+          account.purchases.forEach((purchase: any) => {
+            transactions.push({
+              id: purchase._id,
+              date: new Date(purchase.purchase_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              merchant: purchase.description || 'Purchase',
+              amount: -purchase.amount, // Negative for expenses
+              category: 'purchase',
+              tags: [],
+              accountId: account.id
+            });
+          });
+        }
+
+        // Add deposits (positive amounts)
+        if (account.deposits) {
+          account.deposits.forEach((deposit: any) => {
+            transactions.push({
+              id: deposit._id,
+              date: new Date(deposit.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              merchant: deposit.description || 'Deposit',
+              amount: deposit.amount, // Positive for income
+              category: 'deposit',
+              tags: [],
+              accountId: account.id
+            });
+          });
+        }
+
+        return transactions;
+      });
+
+      // Sort transactions by date (newest first)
+      capitalOneTransactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      setAccounts(capitalOneAccounts);
+      setTransactions(capitalOneTransactions.slice(0, 10)); // Show last 10 transactions
+
+      // Calculate budgets based on spending patterns (simplified for demo)
+      const monthlySpending = capitalOneTransactions.reduce((acc: any, tx: any) => {
+        const category = tx.category || 'other';
+        if (!acc[category]) acc[category] = 0;
+        if (tx.amount < 0) acc[category] += Math.abs(tx.amount);
+        return acc;
+      }, {});
+
+      const calculatedBudgets = Object.entries(monthlySpending).map(([category, spent]) => ({
+        category: category.charAt(0).toUpperCase() + category.slice(1) + ' & Dining',
+        limit: Math.max((spent as number) * 1.2, 200), // 20% buffer or minimum $200
+        spent: spent as number,
+        remaining: Math.max((spent as number) * 1.2, 200) - (spent as number)
+      }));
+
+      setBudgets(calculatedBudgets.length > 0 ? calculatedBudgets : [
+        { category: 'Food & Dining', limit: 400, spent: 287, remaining: 113 },
+        { category: 'Transportation', limit: 200, spent: 145, remaining: 55 },
+        { category: 'Entertainment', limit: 150, spent: 89, remaining: 61 },
+        { category: 'Shopping', limit: 300, spent: 234, remaining: 66 },
+      ]);
+    } else {
+      // Fallback to demo data if no Capital One data
+      setAccounts([
+        { id: '1', type: 'Checking', balance: user?.balance || 2450.00, nickname: 'Main Checking' },
+        { id: '2', type: 'Savings', balance: 5200.00, nickname: 'Emergency Fund' },
+      ]);
+
+      setTransactions([
+        { id: '1', date: 'Oct 18, 2024', merchant: 'Starbucks', amount: -5.50, category: 'coffee', tags: ['morning'] },
+        { id: '2', date: 'Oct 17, 2024', merchant: 'Target', amount: -87.43, category: 'shopping', tags: ['groceries'] },
+        { id: '3', date: 'Oct 16, 2024', merchant: 'Shell Gas Station', amount: -45.00, category: 'transport', tags: [] },
+        { id: '4', date: 'Oct 15, 2024', merchant: 'Chipotle', amount: -12.75, category: 'food', tags: ['lunch'] },
+        { id: '5', date: 'Oct 14, 2024', merchant: 'Amazon', amount: -29.99, category: 'shopping', tags: [] },
+        { id: '6', date: 'Oct 13, 2024', merchant: 'Salary Deposit', amount: 3500.00, category: 'income', tags: [] },
+        { id: '7', date: 'Oct 12, 2024', merchant: 'Netflix', amount: -15.99, category: 'entertainment', tags: ['subscription'] },
+        { id: '8', date: 'Oct 11, 2024', merchant: 'Whole Foods', amount: -67.23, category: 'groceries', tags: [] },
+      ]);
+
+      setBudgets([
+        { category: 'Food & Dining', limit: 400, spent: 287, remaining: 113 },
+        { category: 'Transportation', limit: 200, spent: 145, remaining: 55 },
+        { category: 'Entertainment', limit: 150, spent: 89, remaining: 61 },
+        { category: 'Shopping', limit: 300, spent: 234, remaining: 66 },
+      ]);
+    }
+  }, [user]);
 
   const handleAddTag = (transactionId: string, tag: string) => {
     console.log('Dashboard handleAddTag called:', transactionId, tag);
@@ -33,20 +131,6 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
       )
     );
   };
-
-  // Demo accounts data
-  const accounts = [
-    { id: '1', type: 'Checking', balance: 2450.00, nickname: 'Main Checking' },
-    { id: '2', type: 'Savings', balance: 5200.00, nickname: 'Emergency Fund' },
-  ];
-
-  // Demo budget data
-  const budgets = [
-    { category: 'Food & Dining', limit: 400, spent: 287, remaining: 113 },
-    { category: 'Transportation', limit: 200, spent: 145, remaining: 55 },
-    { category: 'Entertainment', limit: 150, spent: 89, remaining: 61 },
-    { category: 'Shopping', limit: 300, spent: 234, remaining: 66 },
-  ];
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
@@ -64,7 +148,14 @@ const DashboardScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>{user?.name || 'Alex'}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.userName}>{user?.name || 'Alex'}</Text>
+              {user?.capitalOneData && (
+                <View style={styles.capitalOneBadge}>
+                  <Text style={styles.capitalOneBadgeText}>Capital One</Text>
+                </View>
+              )}
+            </View>
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
@@ -193,6 +284,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  capitalOneBadge: {
+    backgroundColor: '#e31837', // Capital One red
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  capitalOneBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
