@@ -13,7 +13,7 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { VoiceActivationButton } from '../components/VoiceActivationButton';
+import GeminiAssistant, { GeminiAgentId, GeminiMode } from '../components/GeminiAssistant';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { getWebSocketService, resetWebSocketService, WebSocketMessage, WebSocketService } from '../services/WebSocketService';
 import { useAuthStore } from '../stores/authStore';
@@ -39,10 +39,16 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentAgent, setCurrentAgent] = useState<string | null>(null);
+  const [currentAgent, setCurrentAgent] = useState<GeminiAgentId | null>(null);
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [transcribingText, setTranscribingText] = useState('');
   const [serviceToken, setServiceToken] = useState(0);
+  const [geminiMode, setGeminiMode] = useState<GeminiMode>('idle');
+  const [summaryNotification, setSummaryNotification] = useState<{
+    sessionId: string;
+    summary: any;
+    agentMetadata?: any;
+  } | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const wsService = useRef<WebSocketService | null>(null);
@@ -57,6 +63,19 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
     duration,
     error: recordingError,
   } = useAudioRecording(wsService.current);
+  const isRecordingRef = useRef(isRecording);
+  const isAgentSpeakingRef = useRef(isAgentSpeaking);
+
+  const resolveAgentTheme = (agent?: string | null): GeminiAgentId => {
+    if (!agent) {
+      return 'default';
+    }
+    const normalized = agent.toLowerCase();
+    if (normalized === 'nebula' || normalized === 'atlas' || normalized === 'sentinel' || normalized === 'nova') {
+      return normalized;
+    }
+    return 'default';
+  };
 
   useEffect(() => {
     const customerId = user?.customerId;
@@ -117,37 +136,76 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
     const handleConnectionEstablished = (message: WebSocketMessage) => {
       console.log('Connection established:', message);
       setSessionId(message.session_id ?? null);
+      setGeminiMode('idle');
+      setSummaryNotification(null);
       addSystemMessage('Connected. Tap the microphone to speak!');
     };
 
     const handleTranscription = (message: WebSocketMessage) => {
       console.log('Transcription received:', message.text);
       setTranscribingText('');
+      setGeminiMode('processing');
       addUserMessage(message.text || '', message.confidence);
     };
 
     const handleConversationComplete = (message: WebSocketMessage) => {
       console.log('Agent response:', message.response_text);
-      setCurrentAgent(message.selected_agent);
+      const themeAgent = resolveAgentTheme(message.selected_agent);
+      setCurrentAgent(themeAgent === 'default' ? null : themeAgent);
       addAgentMessage(message.response_text || '', message.selected_agent, message);
+      if (!isAgentSpeakingRef.current) {
+        setGeminiMode('idle');
+      }
     };
 
     const handleListeningStarted = () => {
       console.log('Listening started');
+      setGeminiMode('listening');
     };
 
     const handleAgentSpeaking = (msg: WebSocketMessage) => {
       console.log('Agent speaking:', msg.utterance);
+      const speakingAgent = resolveAgentTheme(msg.agent_name || msg.agent_id || currentAgent || undefined);
+      setCurrentAgent(speakingAgent === 'default' ? null : speakingAgent);
+      setIsAgentSpeaking(true);
+      isAgentSpeakingRef.current = true;
+      setGeminiMode('speaking');
     };
 
     const handleAgentStarted = () => {
       console.log('Agent started speaking');
       setIsAgentSpeaking(true);
+      isAgentSpeakingRef.current = true;
+      setGeminiMode('speaking');
     };
 
     const handleAgentFinished = () => {
       console.log('Agent finished speaking');
       setIsAgentSpeaking(false);
+      isAgentSpeakingRef.current = false;
+      if (!isRecordingRef.current) {
+        setGeminiMode('idle');
+      }
+    };
+
+    const handleSummaryReady = (message: WebSocketMessage) => {
+      console.log('Summary ready for session', message.session_id);
+      if (!message.session_id) {
+        return;
+      }
+
+      setSummaryNotification({
+        sessionId: message.session_id,
+        summary: message.summary,
+        agentMetadata: message.agent_metadata,
+      });
+
+      const agentFromMetadata = resolveAgentTheme(message.agent_metadata?.agent || message.agent_metadata?.agent_name);
+      setCurrentAgent(agentFromMetadata === 'default' ? null : agentFromMetadata);
+
+      if (!isRecordingRef.current) {
+        setGeminiMode('idle');
+      }
     };
 
     const handleError = (message: WebSocketMessage) => {
@@ -162,6 +220,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
     service.on('agent_started', handleAgentStarted);
     service.on('agent_speaking', handleAgentSpeaking);
     service.on('agent_finished', handleAgentFinished);
+    service.on('conversation_summary_ready', handleSummaryReady);
     service.on('error', handleError);
 
     return () => {
@@ -173,6 +232,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
       service.off('agent_started', handleAgentStarted);
       service.off('agent_speaking', handleAgentSpeaking);
       service.off('agent_finished', handleAgentFinished);
+      service.off('conversation_summary_ready', handleSummaryReady);
       service.off('error', handleError);
       service.disconnect();
       setIsConnected(false);
@@ -184,6 +244,14 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
       Alert.alert('Recording Error', recordingError);
     }
   }, [recordingError]);
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  useEffect(() => {
+    isAgentSpeakingRef.current = isAgentSpeaking;
+  }, [isAgentSpeaking]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -230,15 +298,28 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
   };
 
   const handleVoiceButtonPress = async () => {
-    if (isRecording) {
-      await stopRecording();
-      setTranscribingText('Processing...');
-    } else {
-      if (!isConnected) {
-        Alert.alert('Not Connected', 'Please wait for connection to establish');
-        return;
+    if (isPreparing) {
+      return;
+    }
+
+    if (!isConnected) {
+      Alert.alert('Not Connected', 'Please wait for connection to establish');
+      return;
+    }
+
+    try {
+      if (isRecording) {
+        setGeminiMode('processing');
+        setTranscribingText('Processing...');
+        await stopRecording();
+      } else {
+        setSummaryNotification(null);
+        setGeminiMode('listening');
+        await startRecording();
       }
-      await startRecording();
+    } catch (error) {
+      console.error('Voice button press failed', error);
+      setGeminiMode('idle');
     }
   };
 
@@ -287,7 +368,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
     return (
       <View style={styles.container}>
         <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gradient}>
-          <View style={[styles.content, { padding: 24 }]}> 
+          <View style={[styles.content, { padding: 24 }]}>
             <Text style={styles.headerTitle}>Voice Assistant</Text>
             <Text style={[styles.systemMessage, { marginTop: 16 }]}>
               Link your Capital One account first to enable voice conversations.
@@ -398,16 +479,53 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
                 Speaking with {currentAgent.charAt(0).toUpperCase() + currentAgent.slice(1)}
               </Text>
             )}
-            <VoiceActivationButton
-              isRecording={isRecording}
-              isPreparing={isPreparing}
-              onPress={handleVoiceButtonPress}
-              disabled={!isConnected}
-              size={100}
-              recordingDuration={duration}
-            />
+
+            <View style={styles.voiceControls}>
+              <GeminiAssistant
+                mode={geminiMode}
+                onPress={handleVoiceButtonPress}
+                disabled={!isConnected || isPreparing}
+                size={220}
+                agent={currentAgent ?? 'default'}
+              />
+              <Text style={styles.voiceHint}>
+                {isRecording
+                  ? 'Gemini is listening—tap again when you finish talking.'
+                  : 'Tap the Gemini star to start a new voice turn.'}
+              </Text>
+              <Text style={styles.voiceMeta}>
+                {isConnected ? 'Connected to orchestrator' : 'Reconnecting...'}
+                {isRecording ? ` • ${duration.toFixed(1)}s` : ''}
+              </Text>
+            </View>
+
             {isAgentSpeaking && (
               <Text style={styles.agentSpeakingText}>🔊 Agent is speaking...</Text>
+            )}
+
+            {summaryNotification && (
+              <TouchableOpacity
+                style={styles.summaryCard}
+                activeOpacity={0.9}
+                onPress={() => {
+                  navigation.navigate('ConversationSummary', {
+                    sessionId: summaryNotification.sessionId,
+                  });
+                  setSummaryNotification(null);
+                }}
+              >
+                <Text style={styles.summaryTitle}>Gemini has a report ready</Text>
+                <Text style={styles.summarySnippet}>
+                  {summaryNotification.summary?.agent_messages?.length
+                    ? summaryNotification.summary.agent_messages[
+                        summaryNotification.summary.agent_messages.length - 1
+                      ]?.content ?? 'Your specialists finished their analysis.'
+                    : 'Your specialists finished their analysis.'}
+                </Text>
+                <Text style={styles.summaryPrompt}>
+                  Click on the screen to view the report/analysis.
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         </Animated.View>
@@ -564,15 +682,59 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  voiceControls: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   currentAgentText: {
     fontSize: 14,
     color: '#CBD5E1',
     marginBottom: 12,
   },
+  voiceHint: {
+    fontSize: 14,
+    color: '#CBD5E1',
+    textAlign: 'center',
+    maxWidth: 280,
+    marginTop: 12,
+  },
+  voiceMeta: {
+    fontSize: 12,
+    color: '#93C5FD',
+    textAlign: 'center',
+    marginTop: 8,
+  },
   agentSpeakingText: {
     fontSize: 14,
     color: '#10B981',
     marginTop: 12,
+    fontWeight: '600',
+  },
+  summaryCard: {
+    marginTop: 24,
+    padding: 18,
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    backgroundColor: 'rgba(30, 64, 175, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.45)',
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    marginBottom: 6,
+  },
+  summarySnippet: {
+    fontSize: 14,
+    color: '#C4D4F7',
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  summaryPrompt: {
+    fontSize: 13,
+    color: '#FACC15',
     fontWeight: '600',
   },
 });

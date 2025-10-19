@@ -2,11 +2,14 @@
 
 from typing import Optional, Dict, Any
 
+from datetime import datetime
+
 from fastapi import APIRouter, Header, HTTPException, status, BackgroundTasks
 
 from ..config import config
 from ..models.schemas import ElevenLabsEventPayload, ElevenLabsWebhookResponse
 from ..services.conversation_store import conversation_store
+from ..orchestrator.websocket_handler import connection_manager
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -41,10 +44,19 @@ def _resolve_session_id(payload: ElevenLabsEventPayload) -> str:
 async def _process_agent_event(payload: ElevenLabsEventPayload) -> None:
     """Background task: Process agent event and trigger UI updates."""
     session_id = payload.session_id or payload.conversation_id
-    
+
     if not session_id:
         print("⚠️ Webhook event missing session_id")
         return
+
+    session = await conversation_store.get_session(session_id)
+    if not session:
+        print(f"⚠️ Session {session_id} not found for webhook event")
+        return
+
+    customer_id = session.get("customer_id")
+    if not customer_id:
+        print(f"⚠️ Session {session_id} missing customer_id; cannot broadcast event")
     
     # Store event in conversation
     event_payload = payload.model_dump(mode="json", by_alias=True)
@@ -53,15 +65,78 @@ async def _process_agent_event(payload: ElevenLabsEventPayload) -> None:
         event_type=payload.event,
         payload=event_payload,
     )
-    
-    # If agent finished, trigger UI formatting
+
+    if customer_id:
+        await _broadcast_agent_event(customer_id, session_id, payload)
+
+    # If agent finished, trigger UI formatting and summary push
     if payload.event == "agent_finished":
         print(f"✓ Agent finished for session {session_id}")
         summary = await conversation_store.get_summary(session_id)
+        if summary and customer_id:
+            await _broadcast_conversation_summary(customer_id, session_id, summary, payload.metadata)
         if summary:
             await _format_ui_updates(summary)
     elif payload.event == "agent_started":
         print(f"✓ Agent started for session {session_id}")
+
+
+async def _broadcast_agent_event(
+    customer_id: str,
+    session_id: str,
+    payload: ElevenLabsEventPayload,
+) -> None:
+    """Send agent lifecycle event to the connected client if available."""
+    message: Dict[str, Any] = {
+        "type": payload.event,
+        "session_id": session_id,
+        "agent_id": payload.agent_id,
+        "agent_name": payload.agent_name,
+        "utterance": payload.utterance,
+        "metadata": _serialize_value(payload.metadata),
+    }
+
+    if payload.timestamp:
+        message["timestamp"] = payload.timestamp.isoformat()
+
+    await connection_manager.send_to_client(customer_id, message)
+
+
+async def _broadcast_conversation_summary(
+    customer_id: str,
+    session_id: str,
+    summary: Dict[str, Any],
+    agent_metadata: Optional[Dict[str, Any]],
+) -> None:
+    """Push a summary-ready notification with serialized payload to the client."""
+    message = {
+        "type": "conversation_summary_ready",
+        "session_id": session_id,
+        "summary": _serialize_summary(summary),
+    }
+
+    if agent_metadata:
+        message["agent_metadata"] = _serialize_value(agent_metadata)
+
+    await connection_manager.send_to_client(customer_id, message)
+
+
+def _serialize_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert summary payload into JSON-serializable structure."""
+    return _serialize_value(summary)
+
+
+def _serialize_value(value: Any) -> Any:
+    """Recursively convert datetimes and unsupported types for JSON serialization."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _serialize_value(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_serialize_value(item) for item in value]
+    return value
 
 
 async def _format_ui_updates(summary: Dict[str, Any]) -> None:

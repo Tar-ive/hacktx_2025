@@ -9,46 +9,36 @@ import {
   Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AgentOrb from '../components/AgentOrb';
+import GeminiAssistant, { GeminiMode } from '../components/GeminiAssistant';
 import UserAvatar from '../components/UserAvatar';
 import { useAuthStore } from '../stores/authStore';
 
 const AIHomeScreen = ({ navigation }: { navigation: any }) => {
   const { user } = useAuthStore();
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [geminiMode, setGeminiMode] = useState<GeminiMode>('idle');
+  const [isRouting, setIsRouting] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
+  const transitionTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // AI agents data
-  const agents = [
+  const specialists = [
     {
       id: 'nebula',
       name: 'Nebula',
-      color: '#6B46C1',
-      description: 'Financial Strategy & Insights',
-      specialty: 'Investment analysis and wealth building'
+      role: 'Spending Coach',
+      focus: 'Budgets, groceries, daily cashflow'
     },
     {
       id: 'atlas',
       name: 'Atlas',
-      color: '#2563EB',
-      description: 'Budget Management & Planning',
-      specialty: 'Expense tracking and financial planning'
-    },
-    {
-      id: 'nova',
-      name: 'Nova',
-      color: '#DC2626',
-      description: 'Spending Patterns & Habits',
-      specialty: 'Behavioral analysis and recommendations'
+      role: 'Investment Advisor',
+      focus: 'Retirement, portfolio, savings rate'
     },
     {
       id: 'sentinel',
       name: 'Sentinel',
-      color: '#059669',
-      description: 'Security & Fraud Detection',
-      specialty: 'Transaction security and anomaly detection'
+      role: 'Security Monitor',
+      focus: 'Fraud alerts and unusual activity'
     }
   ];
 
@@ -68,30 +58,27 @@ const AIHomeScreen = ({ navigation }: { navigation: any }) => {
     ]).start();
   }, []);
 
-  const handleAgentSelect = (agentId: string) => {
-    setIsAnimating(true);
-    setSelectedAgent(agentId);
+  useEffect(() => {
+    return () => {
+      if (transitionTimeout.current) {
+        clearTimeout(transitionTimeout.current);
+      }
+    };
+  }, []);
 
-    // Pulse animation
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 1.1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setTimeout(() => {
-        // Navigate to agent chat
-        navigation.navigate('AgentChat', { agentId });
-        setIsAnimating(false);
-        setSelectedAgent(null);
-      }, 500);
-    });
+  const handleGeminiPress = () => {
+    if (isRouting) {
+      return;
+    }
+
+    setIsRouting(true);
+    setGeminiMode('listening');
+
+    transitionTimeout.current = setTimeout(() => {
+      navigation.navigate('VoiceConversation');
+      setGeminiMode('idle');
+      setIsRouting(false);
+    }, 400);
   };
 
   const handleViewDashboard = () => {
@@ -154,29 +141,40 @@ const AIHomeScreen = ({ navigation }: { navigation: any }) => {
             )}
           </View>
 
-          {/* Agent Constellation */}
-          <View style={styles.constellationContainer}>
-            <Text style={styles.sectionTitle}>Choose Your AI Assistant</Text>
-            <View style={styles.agentsGrid}>
-              {agents.map((agent, index) => (
-                <TouchableOpacity
-                  key={agent.id}
-                  style={styles.agentWrapper}
-                  onPress={() => handleAgentSelect(agent.id)}
-                  activeOpacity={0.8}
-                >
-                  <AgentOrb
-                    name={agent.name}
-                    color={agent.color}
-                    isActive={selectedAgent === agent.id}
-                    isSpeaking={selectedAgent === agent.id}
-                  />
-                  <View style={styles.agentInfo}>
-                    <Text style={styles.agentName}>{agent.name}</Text>
-                    <Text style={styles.agentDescription}>{agent.description}</Text>
-                    <Text style={styles.agentSpecialty}>{agent.specialty}</Text>
-                  </View>
-                </TouchableOpacity>
+          {/* Gemini Voice Assistant */}
+          <View style={styles.geminiSection}>
+            <GeminiAssistant
+              mode={geminiMode}
+              onPress={handleGeminiPress}
+              label={
+                geminiMode === 'idle'
+                  ? 'Gemini is your voice-first greeter'
+                  : undefined
+              }
+              subLabel={
+                geminiMode === 'idle'
+                  ? 'Tap once and start speaking—Gemini handles STT and routing'
+                  : undefined
+              }
+            />
+            <View style={styles.geminiHintCard}>
+              <Text style={styles.geminiHintTitle}>How it works</Text>
+              <Text style={styles.geminiHintText}>
+                Gemini greets you, listens in real time, then sends the right requests to
+                specialist agents like Nebula or Atlas. Responses flow back as voice and text.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.specialistsContainer}>
+            <Text style={styles.sectionTitle}>Specialists Gemini Can Call</Text>
+            <View style={styles.specialistsGrid}>
+              {specialists.map((specialist) => (
+                <View key={specialist.id} style={styles.specialistCard}>
+                  <Text style={styles.specialistName}>{specialist.name}</Text>
+                  <Text style={styles.specialistRole}>{specialist.role}</Text>
+                  <Text style={styles.specialistFocus}>{specialist.focus}</Text>
+                </View>
               ))}
             </View>
           </View>
@@ -292,9 +290,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: width > 768 ? 400 : 300,
   },
-  constellationContainer: {
+  geminiSection: {
     alignItems: 'center',
-    marginBottom: height > 768 ? 60 : 40,
+    marginBottom: height > 768 ? 70 : 50,
   },
   sectionTitle: {
     fontSize: width > 768 ? 24 : 20,
@@ -303,39 +301,63 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
   },
-  agentsGrid: {
+  geminiHintCard: {
+    marginTop: 20,
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+    maxWidth: width > 768 ? 420 : 340,
+  },
+  geminiHintTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E2E8F0',
+    marginBottom: 8,
+  },
+  geminiHintText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  specialistsContainer: {
+    alignItems: 'center',
+    marginBottom: height > 768 ? 60 : 45,
+  },
+  specialistsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: width > 768 ? 30 : 20,
-    maxWidth: width > 768 ? 800 : 350,
+    gap: width > 768 ? 18 : 12,
+    maxWidth: width > 768 ? 640 : 320,
   },
-  agentWrapper: {
-    alignItems: 'center',
-    width: width > 768 ? 180 : 150,
-    marginBottom: 15,
+  specialistCard: {
+    width: width > 768 ? 190 : 150,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
   },
-  agentInfo: {
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  agentName: {
-    fontSize: width > 768 ? 18 : 16,
-    fontWeight: 'bold',
+  specialistName: {
+    fontSize: 16,
     color: '#F8FAFC',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
   },
-  agentDescription: {
-    fontSize: width > 768 ? 14 : 12,
-    color: '#CBD5E1',
+  specialistRole: {
+    fontSize: 13,
+    color: '#cbd5f5',
     textAlign: 'center',
     marginBottom: 4,
   },
-  agentSpecialty: {
-    fontSize: width > 768 ? 12 : 11,
+  specialistFocus: {
+    fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   actionsContainer: {
     alignItems: 'center',
