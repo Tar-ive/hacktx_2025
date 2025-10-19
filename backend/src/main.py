@@ -1,13 +1,14 @@
 """FastAPI main application."""
 
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from .config import config
 from .api.routes import router
 from .orchestrator.triggers import validate_no_overlap
+from .orchestrator.websocket_handler import handle_websocket_audio_stream
 
 
 @asynccontextmanager
@@ -75,6 +76,12 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router)
+
+
+@app.websocket("/ws/{customer_id}")
+async def websocket_endpoint(websocket: WebSocket, customer_id: str):
+    """Enhanced WebSocket endpoint for real-time audio streaming and conversation."""
+    await handle_websocket_audio_stream(websocket, customer_id)
 
 
 if __name__ == "__main__":
