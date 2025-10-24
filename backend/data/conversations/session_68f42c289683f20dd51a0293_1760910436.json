@@ -1,0 +1,87 @@
+{
+  "session_id": "session_68f42c289683f20dd51a0293_1760910436",
+  "customer_id": "68f42c289683f20dd51a0293",
+  "created_at": "2025-10-19T21:47:16.910453+00:00",
+  "updated_at": "2025-10-19T21:48:04.130753+00:00",
+  "metadata": {
+    "connection_type": "websocket",
+    "user_agent": "mobile_app"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "```json\n{\n  \"transcription\": \"I noticed a suspicious transaction on my account.\",\n  \"confidence\": 0.98,\n  \"detected_intent\": \"security_alert\",\n  \"clarification_needed\": false\n}\n```",
+      "agent": null,
+      "timestamp": "2025-10-19T21:47:59.561124+00:00",
+      "transcription_metadata": {
+        "text": "```json\n{\n  \"transcription\": \"I noticed a suspicious transaction on my account.\",\n  \"confidence\": 0.98,\n  \"detected_intent\": \"security_alert\",\n  \"clarification_needed\": false\n}\n```",
+        "confidence": 0.8,
+        "context_used": false,
+        "detected_intent": "general_question",
+        "clarification_needed": false,
+        "is_final": true
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "Secure connection established. I'm Sentinel, your security monitor. How can I help protect your finances?",
+      "agent": "sentinel",
+      "timestamp": "2025-10-19T21:48:04.130712+00:00",
+      "routing_reasoning": "User reported a suspicious transaction, indicating a potential security concern.",
+      "using_real_agent": true
+    }
+  ],
+  "events": [],
+  "context_snapshots": [
+    {
+      "context": {
+        "get_recent_transactions": [
+          {
+            "_id": "68f42c529683f20dd51a0299",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-19",
+            "amount": 120,
+            "status": "executed",
+            "description": "Sample Grocery Purchase",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "payee_id": "57cf75cea73e494d8675ec4a",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e529683f20dd51a02f3",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-10",
+            "amount": 42.5,
+            "status": "pending",
+            "description": "Gas station",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e4e9683f20dd51a02f2",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-05",
+            "amount": 60,
+            "status": "pending",
+            "description": "Restaurant dinner",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          }
+        ],
+        "detect_unusual_transactions": [],
+        "execution_time_ms": 1.27
+      },
+      "timestamp": "2025-10-19T21:48:01.090668+00:00"
+    }
+  ],
+  "summary_bundle": null
+}

@@ -17,26 +17,27 @@ class Config:
     # Gemini API
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    
-    # ElevenLabs API
+
+    # ADK agent configuration
+    ENABLE_ADK_AGENTS = os.getenv("ENABLE_ADK_AGENTS", "true").lower() == "true"
+
+    # Legacy ElevenLabs configuration retained for backwards compatibility
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
     ELEVENLABS_WEBHOOK_SECRET = os.getenv("ELEVENLABS_WEBHOOK_SECRET", "")
-    
-    # Agent IDs (created via ElevenLabs API)
     AGENT_ID_NEBULA = os.getenv("AGENT_ID_NEBULA", "")
     AGENT_ID_ATLAS = os.getenv("AGENT_ID_ATLAS", "")
     AGENT_ID_SENTINEL = os.getenv("AGENT_ID_SENTINEL", "")
     AGENT_ID_NOVA = os.getenv("AGENT_ID_NOVA", "")
-    
+
+    @classmethod
+    def adk_agents_enabled(cls) -> bool:
+        """Return True when ADK agents are enabled and credentials are present."""
+        return cls.ENABLE_ADK_AGENTS and bool(cls.GEMINI_API_KEY)
+
     @classmethod
     def has_elevenlabs_agents(cls) -> bool:
-        """Check if all ElevenLabs agents are configured."""
-        return all([
-            cls.AGENT_ID_NEBULA,
-            cls.AGENT_ID_ATLAS,
-            cls.AGENT_ID_SENTINEL,
-            cls.AGENT_ID_NOVA
-        ])
+        """Legacy alias that now checks ADK agent availability."""
+        return cls.adk_agents_enabled()
     
     # Cache configuration
     CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))

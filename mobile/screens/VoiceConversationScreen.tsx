@@ -2,7 +2,7 @@
  * Voice Conversation Screen - Real-time voice interaction with AI agents
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,10 +13,14 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
 import GeminiAssistant, { GeminiAgentId, GeminiMode } from '../components/GeminiAssistant';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { getWebSocketService, resetWebSocketService, WebSocketMessage, WebSocketService } from '../services/WebSocketService';
 import { useAuthStore } from '../stores/authStore';
+import { useADKAgentStore, AgentId } from '../stores/adkAgentStore';
+import ErrorBoundary from '../components/ErrorBoundary';
+import ToolExecutionIndicator from '../components/ToolExecutionIndicator';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -36,9 +40,23 @@ export interface VoiceConversationScreenProps {
 
 const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navigation }) => {
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const {
+    activeAgent,
+    setActiveAgent,
+    agentState,
+    setAgentState,
+    sessionHistory,
+    addMessage,
+    conversationId,
+    setConversationId,
+    isConnected: storeConnected,
+    setConnected,
+    activeToolExecutions,
+    addToolExecution,
+    updateToolExecution,
+  } = useADKAgentStore();
+  
   const [isConnected, setIsConnected] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentAgent, setCurrentAgent] = useState<GeminiAgentId | null>(null);
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [transcribingText, setTranscribingText] = useState('');
@@ -54,6 +72,9 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
   const wsService = useRef<WebSocketService | null>(null);
   const previousCustomerId = useRef<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingAudioRef = useRef(false);
+  const currentSoundRef = useRef<Audio.Sound | null>(null);
 
   const {
     isRecording,
@@ -65,6 +86,64 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
   } = useAudioRecording(wsService.current);
   const isRecordingRef = useRef(isRecording);
   const isAgentSpeakingRef = useRef(isAgentSpeaking);
+
+  const playNextAudio = useCallback(() => {
+    if (isPlayingAudioRef.current) {
+      return;
+    }
+
+    const nextChunk = audioQueueRef.current.shift();
+    if (!nextChunk) {
+      return;
+    }
+
+    isPlayingAudioRef.current = true;
+    const dataUri = `data:audio/wav;base64,${nextChunk}`;
+
+    Audio.Sound.createAsync({ uri: dataUri }, { shouldPlay: true, isLooping: false })
+      .then(({ sound }) => {
+        currentSoundRef.current = sound;
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded) {
+            if (status.error) {
+              console.error('Agent audio playback error', status.error);
+            }
+            return;
+          }
+
+          if (status.didJustFinish || (!status.isPlaying && status.positionMillis >= (status.playableDurationMillis ?? 0))) {
+            sound.setOnPlaybackStatusUpdate(null);
+            sound.unloadAsync().catch(() => undefined).finally(() => {
+              if (currentSoundRef.current === sound) {
+                currentSoundRef.current = null;
+              }
+              isPlayingAudioRef.current = false;
+              if (audioQueueRef.current.length > 0) {
+                setTimeout(() => playNextAudio(), 0);
+              }
+            });
+          }
+        });
+      })
+      .catch((error) => {
+        console.error('Failed to play agent audio chunk', error);
+        isPlayingAudioRef.current = false;
+        if (audioQueueRef.current.length > 0) {
+          setTimeout(() => playNextAudio(), 0);
+        }
+      });
+  }, []);
+
+  const handleAgentAudioChunk = useCallback((message: WebSocketMessage) => {
+    const payload = message.payload || message.data;
+    if (typeof payload !== 'string' || payload.length === 0) {
+      return;
+    }
+    audioQueueRef.current.push(payload);
+    if (!isPlayingAudioRef.current) {
+      playNextAudio();
+    }
+  }, [playNextAudio]);
 
   const resolveAgentTheme = (agent?: string | null): GeminiAgentId => {
     if (!agent) {
@@ -135,26 +214,62 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
 
     const handleConnectionEstablished = (message: WebSocketMessage) => {
       console.log('Connection established:', message);
-      setSessionId(message.session_id ?? null);
+      const sessionId = message.session_id ?? null;
+      if (sessionId) {
+        setConversationId(sessionId);
+      }
+      setConnected(true);
       setGeminiMode('idle');
       setSummaryNotification(null);
-      addSystemMessage('Connected. Tap the microphone to speak!');
+      addMessage({
+        type: 'system',
+        text: 'Connected. Tap the microphone to speak!',
+      });
     };
 
     const handleTranscription = (message: WebSocketMessage) => {
       console.log('Transcription received:', message.text);
       setTranscribingText('');
       setGeminiMode('processing');
-      addUserMessage(message.text || '', message.confidence);
+      setAgentState('thinking');
+      addMessage({
+        type: 'user',
+        text: message.text || '',
+        confidence: message.confidence,
+      });
     };
 
     const handleConversationComplete = (message: WebSocketMessage) => {
       console.log('Agent response:', message.response_text);
       const themeAgent = resolveAgentTheme(message.selected_agent);
-      setCurrentAgent(themeAgent === 'default' ? null : themeAgent);
-      addAgentMessage(message.response_text || '', message.selected_agent, message);
+      const agentId = themeAgent === 'default' ? null : themeAgent;
+      setCurrentAgent(agentId);
+      if (agentId) {
+        setActiveAgent(agentId as AgentId);
+      }
+      
+      // Track tools used
+      if (message.tools_used && Array.isArray(message.tools_used)) {
+        message.tools_used.forEach((tool: string) => {
+          addToolExecution({
+            tool_name: tool,
+            status: 'completed',
+            started_at: new Date(),
+            completed_at: new Date(),
+          });
+        });
+      }
+      
+      addMessage({
+        type: 'agent',
+        text: message.response_text || '',
+        agent: message.selected_agent as AgentId,
+        context: message.tools_used ? { tools_called: message.tools_used } : undefined,
+      });
+      
       if (!isAgentSpeakingRef.current) {
         setGeminiMode('idle');
+        setAgentState('idle');
       }
     };
 
@@ -222,6 +337,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
     service.on('agent_finished', handleAgentFinished);
     service.on('conversation_summary_ready', handleSummaryReady);
     service.on('error', handleError);
+    service.on('agent_audio_chunk', handleAgentAudioChunk);
 
     return () => {
       isMounted = false;
@@ -234,10 +350,17 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
       service.off('agent_finished', handleAgentFinished);
       service.off('conversation_summary_ready', handleSummaryReady);
       service.off('error', handleError);
+      service.off('agent_audio_chunk', handleAgentAudioChunk);
+      audioQueueRef.current = [];
+      isPlayingAudioRef.current = false;
+      if (currentSoundRef.current) {
+        currentSoundRef.current.unloadAsync().catch(() => undefined);
+        currentSoundRef.current = null;
+      }
       service.disconnect();
       setIsConnected(false);
     };
-  }, [user?.customerId, serviceToken]);
+  }, [user?.customerId, serviceToken, handleAgentAudioChunk]);
 
   useEffect(() => {
     if (recordingError) {
@@ -256,46 +379,9 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
     scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+  }, [sessionHistory]);
 
-  const addSystemMessage = (text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        type: 'system',
-        text,
-        timestamp: new Date(),
-      },
-    ]);
-  };
 
-  const addUserMessage = (text: string, confidence?: number) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        type: 'user',
-        text,
-        timestamp: new Date(),
-        confidence,
-      },
-    ]);
-  };
-
-  const addAgentMessage = (text: string, agent: string, metadata?: any) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        type: 'agent',
-        text,
-        agent,
-        timestamp: new Date(),
-        metadata,
-      },
-    ]);
-  };
 
   const handleVoiceButtonPress = async () => {
     if (isPreparing) {
@@ -366,27 +452,30 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
 
   if (!user?.customerId) {
     return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gradient}>
-          <View style={[styles.content, { padding: 24 }]}>
-            <Text style={styles.headerTitle}>Voice Assistant</Text>
-            <Text style={[styles.systemMessage, { marginTop: 16 }]}>
-              Link your Capital One account first to enable voice conversations.
-            </Text>
-            <TouchableOpacity
-              style={[styles.systemButton, { marginTop: 24 }]}
-              onPress={() => navigation.navigate('Dashboard')}
-            >
-              <Text style={styles.systemButtonText}>Go to Dashboard</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </View>
+      <ErrorBoundary>
+        <View style={styles.container}>
+          <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gradient}>
+            <View style={[styles.content, { padding: 24 }]}>
+              <Text style={styles.headerTitle}>Voice Assistant</Text>
+              <Text style={[styles.systemMessage, { marginTop: 16 }]}>
+                Link your Capital One account first to enable voice conversations.
+              </Text>
+              <TouchableOpacity
+                style={[styles.systemButton, { marginTop: 24 }]}
+                onPress={() => navigation.navigate('Dashboard')}
+              >
+                <Text style={styles.systemButtonText}>Go to Dashboard</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </View>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ErrorBoundary>
+      <View style={styles.container}>
       <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gradient}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           {/* Header */}
@@ -420,7 +509,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
           >
-            {messages.map((message) => (
+            {sessionHistory.map((message) => (
               <View
                 key={message.id}
                 style={[
@@ -460,7 +549,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
                   ]}
                 >
                   {formatTime(message.timestamp)}
-                  {message.confidence !== undefined && ` • ${Math.round(message.confidence * 100)}%`}
+                  {message.confidence !== undefined ? ` • ${Math.round(message.confidence * 100)}%` : ''}
                 </Text>
               </View>
             ))}
@@ -495,7 +584,7 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
               </Text>
               <Text style={styles.voiceMeta}>
                 {isConnected ? 'Connected to orchestrator' : 'Reconnecting...'}
-                {isRecording ? ` • ${duration.toFixed(1)}s` : ''}
+                {isRecording && ` • ${duration.toFixed(1)}s`}
               </Text>
             </View>
 
@@ -530,7 +619,8 @@ const VoiceConversationScreen: React.FC<VoiceConversationScreenProps> = ({ navig
           </View>
         </Animated.View>
       </LinearGradient>
-    </View>
+      </View>
+    </ErrorBoundary>
   );
 };
 

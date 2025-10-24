@@ -25,11 +25,11 @@ from ..orchestrator.llm_orchestrator import llm_orchestrator
 from ..orchestrator.tool_executor import ToolExecutor
 from ..tools.nessie import TOOLS_REGISTRY, cache
 from ..services.nessie_client import nessie_client
-from ..services.elevenlabs_client import call_agent_with_context
 from ..services.conversation_store import conversation_store
 from ..services.user_data_service import user_data_service
 from ..services.centralized_data_manager import centralized_data_manager
 from ..config import config
+from ..services.adk_agent_service import adk_agent_service
 
 router = APIRouter()
 
@@ -169,37 +169,27 @@ async def send_message(request: ChatMessageRequest):
         # - Layer 3: Nessie API
         # - Fallback: Stale cache if API fails
 
-        # Step 4: Call real ElevenLabs agent with cached context
-        if config.has_elevenlabs_agents():
-            # Call real agent with all cached data as context
-            agent_response = await call_agent_with_context(
+        agent_response = await adk_agent_service.respond(
+            agent_name=selected_agent,
+            message=request.message,
+            context=context,
+            customer_id=request.customer_id,
+            conversation_id=request.session_id,
+        )
+
+        using_real_agent = agent_response.get("success", False)
+
+        if using_real_agent:
+            response_text = agent_response.get("text", "")
+        else:
+            response_text = adk_agent_service.build_context_fallback(
                 agent_name=selected_agent,
                 message=request.message,
                 context=context,
-                conversation_id=request.session_id
             )
-            
-            response_text = agent_response.get("text", "")
-            
-            # Add note if agent call failed but we have fallback
-            if not agent_response.get("success", True):
-                response_text += "\n\n(Note: Using cached data from API layer)"
-        else:
-            # Fallback to mock if agents not configured
-            response_text = f"I'm {selected_agent.title()}, and I'm here to help! "
-            response_text += f"Based on the cached data from the API layer, I can see:\n\n"
-            
-            # Show some context data
-            for tool_name, result in context.items():
-                if tool_name == "execution_time_ms":
-                    continue
-                if isinstance(result, dict) and "error" not in result:
-                    response_text += f"• {tool_name}: Available\n"
-                elif isinstance(result, list) and len(result) > 0:
-                    response_text += f"• {tool_name}: {len(result)} items\n"
-            
-            response_text += f"\nYour question was: {request.message}\n"
-            response_text += "\n(Configure ElevenLabs agent IDs in .env for real conversational responses)"
+            error_hint = agent_response.get("error") or adk_agent_service.disabled_reason
+            if error_hint:
+                response_text += f"\n\n(Note: {error_hint})"
 
         return ChatMessageResponse(
             agent=selected_agent,
@@ -208,7 +198,7 @@ async def send_message(request: ChatMessageRequest):
                 "tools_called": [k for k in context.keys() if k != "execution_time_ms"],
                 "data_fetched": True,
                 "execution_time_ms": context.get("execution_time_ms", 0),
-                "using_real_agent": config.has_elevenlabs_agents(),
+                "using_real_agent": using_real_agent,
                 "cache_layer": "60-min API layer cache + tool fallbacks"
             },
             timestamp=datetime.now()

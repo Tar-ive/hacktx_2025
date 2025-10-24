@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from .config import config
+from .services.adk_agent_service import adk_agent_service
 from .api.routes import router
 from .api.conversation import router as conversation_router
 from .api.webhooks import router as webhooks_router
@@ -40,16 +41,13 @@ async def lifespan(app: FastAPI):
     print(f"✓ Nessie Customer ID: {config.NESSIE_CUSTOMER_ID}")
     print(f"✓ Cache TTL: {config.CACHE_TTL_SECONDS} seconds (60-min API layer)")
     
-    # Show ElevenLabs agent status
-    if config.has_elevenlabs_agents():
-        print(f"✓ ElevenLabs Agents: CONFIGURED (4 real agents)")
-        print(f"  • Nebula: {config.AGENT_ID_NEBULA[:20]}...")
-        print(f"  • Atlas: {config.AGENT_ID_ATLAS[:20]}...")
-        print(f"  • Sentinel: {config.AGENT_ID_SENTINEL[:20]}...")
-        print(f"  • Nova: {config.AGENT_ID_NOVA[:20]}...")
+    # Show ADK agent status
+    if adk_agent_service.is_available:
+        print("✓ ADK Agents: ENABLED (Gemini responses active)")
     else:
-        print(f"⚠️  ElevenLabs Agents: Not configured (using mock responses)")
-        print(f"  Run: python scripts/create_elevenlabs_agents.py")
+        reason = adk_agent_service.disabled_reason or "unknown reason"
+        print("⚠️  ADK Agents: Disabled (falling back to cached summaries)")
+        print(f"  Details: {reason}")
     
     print("=" * 70)
 

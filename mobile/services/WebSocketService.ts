@@ -4,6 +4,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import { Buffer } from 'buffer';
 
 export interface WebSocketMessage {
   type: string;
@@ -83,6 +84,7 @@ export class WebSocketService {
         console.log(`🔌 Connecting to WebSocket: ${this.url}`);
 
         this.ws = new WebSocket(this.url);
+        this.ws.binaryType = 'arraybuffer';
 
         this.ws.onopen = () => {
           console.log('✅ WebSocket connected');
@@ -138,11 +140,68 @@ export class WebSocketService {
   /**
    * Send audio chunk to server (binary data).
    */
+  private normalizeBinaryPayload(payload: Uint8Array | ArrayBuffer): Uint8Array {
+    if (payload instanceof ArrayBuffer) {
+      return new Uint8Array(payload);
+    }
+
+    const { buffer, byteOffset, byteLength } = payload;
+    return new Uint8Array(buffer.slice(byteOffset, byteOffset + byteLength));
+  }
+
+  private encodeBase64(data: Uint8Array): string {
+    if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      return window.btoa(binary);
+    }
+
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(data).toString('base64');
+    }
+
+    throw new Error('No base64 encoder available in this environment');
+  }
+
   sendAudioChunk(audioData: Uint8Array | ArrayBuffer): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(audioData);
+      try {
+        const normalized = this.normalizeBinaryPayload(audioData);
+        if (process.env.NODE_ENV !== 'production') {
+          const preview = Array.from(normalized.slice(0, 4));
+          console.log('📡 Sending audio bytes preview', preview, 'length', normalized.byteLength);
+        }
+        this.ws.send(normalized);
+      } catch (error) {
+        console.error('Failed to send audio chunk', error);
+      }
     } else {
       console.warn('WebSocket not ready, cannot send audio');
+    }
+  }
+
+  sendAudioChunkBase64(audioData: Uint8Array | ArrayBuffer): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket not ready, cannot send base64 audio');
+      return;
+    }
+
+    try {
+      const normalized = this.normalizeBinaryPayload(audioData);
+      const payload = this.encodeBase64(normalized);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📡 Sending base64 audio chunk length', normalized.byteLength);
+      }
+      this.sendMessage({
+        type: 'audio_chunk_base64',
+        payload,
+      });
+    } catch (error) {
+      console.error('Failed to send base64 audio chunk', error);
     }
   }
 
@@ -151,7 +210,11 @@ export class WebSocketService {
    */
   sendMessage(message: WebSocketMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+      try {
+        this.ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Failed to send message', message.type, error);
+      }
     } else {
       console.warn('WebSocket not ready, cannot send message');
     }
@@ -161,6 +224,7 @@ export class WebSocketService {
    * Start conversation (signal that user is about to speak).
    */
   startConversation(): void {
+    console.log('▶️ Sending start_conversation');
     this.sendMessage({ type: 'start_conversation' });
   }
 
@@ -168,6 +232,7 @@ export class WebSocketService {
    * Stop conversation (signal end of user speech).
    */
   stopConversation(): void {
+    console.log('⏹️ Sending stop_conversation');
     this.sendMessage({ type: 'stop_conversation' });
   }
 

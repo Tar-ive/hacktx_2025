@@ -3,8 +3,11 @@ LLM-based orchestrator using Gemini 2.5 Flash.
 Replaces deterministic keyword routing with intelligent AI-driven routing.
 """
 
+import ast
 import asyncio
 import json
+import re
+from json import JSONDecodeError
 from typing import Dict, Any, List, Optional
 import google.generativeai as genai
 from ..config import config
@@ -162,18 +165,44 @@ Respond with routing decision JSON:"""
                 self.model.generate_content,
                 [ORCHESTRATOR_SYSTEM_PROMPT, prompt]
             )
-            
+
             # Parse JSON response
-            response_text = response.text.strip()
-            
-            # Clean JSON (remove markdown code blocks if present)
-            if response_text.startswith("```"):
-                response_text = response_text.split("```")[1]
-                if response_text.startswith("json"):
-                    response_text = response_text[4:]
-                response_text = response_text.strip()
-            
-            result = json.loads(response_text)
+            raw_text = ""
+            finish_reason = None
+            if response and getattr(response, "candidates", None):
+                candidate = response.candidates[0]
+                finish_reason = getattr(candidate, "finish_reason", None)
+                candidate_content = getattr(candidate, "content", "")
+                if hasattr(candidate_content, "parts"):
+                    raw_text = "".join(part.text or "" for part in candidate_content.parts)
+                else:
+                    raw_text = str(candidate_content)
+
+                if finish_reason not in (0, None):
+                    print(f"⚠️ Gemini finish_reason={finish_reason}; attempting heuristic fallback")
+
+            if not raw_text:
+                raw_text = getattr(response, "text", "") or ""
+
+            if not raw_text and finish_reason not in (0, None):
+                raise ValueError(f"Gemini returned no content (finish_reason={finish_reason})")
+
+            response_text = self._prepare_json_response(raw_text)
+            response_text = self._sanitize_json_text(response_text)
+
+            try:
+                result = json.loads(response_text, strict=False)
+            except JSONDecodeError:
+                print("⚠️ LLM orchestrator raw response (sanitized) could not be parsed:")
+                print(response_text)
+                # Attempt final extraction of JSON substring before giving up
+                fallback_text = self._extract_json_block(response_text)
+                fallback_text = self._sanitize_json_text(fallback_text)
+                try:
+                    result = json.loads(fallback_text, strict=False)
+                except JSONDecodeError:
+                    # Last-resort attempt using Python literal parser
+                    result = ast.literal_eval(fallback_text)
             
             # Validate agent
             valid_agents = ["nebula", "atlas", "sentinel", "nova"]
@@ -192,13 +221,35 @@ Respond with routing decision JSON:"""
             
         except Exception as e:
             print(f"⚠️ LLM orchestrator error: {e}")
-            # Fallback to Nova
+
+            lowered = (user_message or "").lower()
+
+            def contains_any(tokens):
+                return any(token in lowered for token in tokens)
+
+            if contains_any(["fraud", "suspicious", "hack", "unauthorized", "security", "locked", "breach"]):
+                fallback_agent = "sentinel"
+                fallback_tools = ["detect_unusual_transactions", "get_security_score", "get_recent_transactions"]
+                context_priority = "security"
+            elif contains_any(["invest", "retire", "portfolio", "stock", "stocks", "401", "rebalanc", "bond", "mutual", "diversify"]):
+                fallback_agent = "atlas"
+                fallback_tools = ["get_all_accounts", "calculate_savings_rate", "get_deposits_history"]
+                context_priority = "investment"
+            elif contains_any(["spend", "budget", "grocer", "dining", "restaurant", "gas", "subscription", "bill", "shopping"]):
+                fallback_agent = "nebula"
+                fallback_tools = ["get_spending_by_category", "get_recent_transactions", "analyze_spending_patterns"]
+                context_priority = "spending"
+            else:
+                fallback_agent = "nova"
+                fallback_tools = ["get_account_balance", "get_customer_info"]
+                context_priority = "general"
+
             return {
-                "agent": "nova",
-                "tools": ["get_account_balance", "get_customer_info"],
-                "reasoning": f"Fallback due to error: {str(e)}",
-                "confidence": 0.5,
-                "context_priority": "general"
+                "agent": fallback_agent,
+                "tools": fallback_tools,
+                "reasoning": f"Heuristic fallback after Gemini response failure: {str(e)}",
+                "confidence": 0.55,
+                "context_priority": context_priority
             }
     
     def tools_to_calls(self, tools: List[str], customer_id: str) -> List[Dict]:
@@ -234,22 +285,24 @@ Respond with routing decision JSON:"""
         session_id: Optional[str] = None,
         requires_auth: bool = False,
     ) -> Dict[str, Any]:
-        """Start an ElevenLabs conversation for the routed agent."""
-        from ..integrations.elevenlabs_integration import elevenlabs_integration
+        """Ensure an ADK conversation session exists for the routed agent."""
+        from ..services.adk_agent_service import adk_agent_service
 
         try:
             await self.get_centralized_context(customer_id)
-            conversation = elevenlabs_integration.start_conversation(
+            session_info = await adk_agent_service.ensure_session(
                 agent_name=agent_name,
                 customer_id=customer_id,
-                session_id=session_id,
-                requires_auth=requires_auth,
+                conversation_id=session_id,
             )
+
+            if not session_info.get("success", False):
+                raise RuntimeError(session_info.get("reason", "Unable to start session"))
 
             return {
                 "success": True,
                 "agent": agent_name,
-                "conversation_id": getattr(conversation, "conversation_id", None),
+                "conversation_id": session_info.get("conversation_id"),
                 "session_key": session_id,
             }
         except Exception as exc:
@@ -258,6 +311,79 @@ Respond with routing decision JSON:"""
                 "agent": agent_name,
                 "error": str(exc),
             }
+
+    def _prepare_json_response(self, raw_text: str) -> str:
+        """Normalize model output to best-effort parsable JSON."""
+        if not raw_text:
+            return "{}"
+
+        cleaned = raw_text.strip()
+
+        if cleaned.startswith("```"):
+            parts = cleaned.split("```")
+            # Select first non-empty fenced block
+            for part in parts:
+                candidate = part.strip()
+                if not candidate:
+                    continue
+                if candidate.lower().startswith("json"):
+                    candidate = candidate[4:].strip()
+                cleaned = candidate
+                break
+
+        # Remove any leading text before first JSON object
+        cleaned = self._extract_json_block(cleaned)
+        return cleaned
+
+    @staticmethod
+    def _sanitize_json_text(text: str) -> str:
+        """Replace common smart punctuation and fix trailing commas."""
+        if not text:
+            return text
+
+        replacements = {
+            "\u201c": '"',
+            "\u201d": '"',
+            "\u2018": "'",
+            "\u2019": "'",
+            "\u2013": "-",
+            "\u2014": "-",
+            "\u00a0": " ",
+        }
+
+        sanitized = text
+        for needle, replacement in replacements.items():
+            sanitized = sanitized.replace(needle, replacement)
+
+        # Remove trailing commas before closing braces/brackets
+        sanitized = re.sub(r",\s*([}\]])", r"\1", sanitized)
+
+        # Ensure any stray single quotes around property names are replaced
+        sanitized = re.sub(r"'([A-Za-z0-9_\-]+)'(?=\s*:)", r'"\1"', sanitized)
+        sanitized = re.sub(r":\s*'([^']*)'", lambda m: ': "' + m.group(1).replace('"', '\\"') + '"', sanitized)
+
+        # Balance unclosed quotes/brackets that occasionally appear in truncated generations
+        if sanitized.count('"') % 2 != 0:
+            sanitized += '"'
+
+        brace_diff = sanitized.count('{') - sanitized.count('}')
+        if brace_diff > 0:
+            sanitized += '}' * brace_diff
+
+        bracket_diff = sanitized.count('[') - sanitized.count(']')
+        if bracket_diff > 0:
+            sanitized += ']' * bracket_diff
+
+        return sanitized
+
+    @staticmethod
+    def _extract_json_block(text: str) -> str:
+        """Return substring spanning the first and last curly braces."""
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or start >= end:
+            return text
+        return text[start:end + 1]
 
 
 # Global instance

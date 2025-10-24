@@ -1,0 +1,14 @@
+{
+  "session_id": "session_68f42c289683f20dd51a0293_1761074160",
+  "customer_id": "68f42c289683f20dd51a0293",
+  "created_at": "2025-10-21T19:16:00.787816+00:00",
+  "updated_at": "2025-10-21T19:16:00.787840+00:00",
+  "metadata": {
+    "connection_type": "websocket",
+    "user_agent": "mobile_app"
+  },
+  "messages": [],
+  "events": [],
+  "context_snapshots": [],
+  "summary_bundle": null
+}

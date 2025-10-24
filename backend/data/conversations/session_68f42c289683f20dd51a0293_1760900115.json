@@ -1,0 +1,400 @@
+{
+  "session_id": "session_68f42c289683f20dd51a0293_1760900115",
+  "customer_id": "68f42c289683f20dd51a0293",
+  "created_at": "2025-10-19T18:55:15.558539+00:00",
+  "updated_at": "2025-10-19T18:56:36.986900+00:00",
+  "metadata": {
+    "connection_type": "websocket",
+    "user_agent": "mobile_app"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "```json\n{\n    \"transcription\": \"\",\n    \"confidence\": 0.0,\n    \"detected_intent\": null,\n    \"clarification_needed\": true\n}\n```",
+      "agent": null,
+      "timestamp": "2025-10-19T18:55:23.708618+00:00",
+      "transcription_metadata": {
+        "text": "```json\n{\n    \"transcription\": \"\",\n    \"confidence\": 0.0,\n    \"detected_intent\": null,\n    \"clarification_needed\": true\n}\n```",
+        "confidence": 0.8,
+        "context_used": false,
+        "detected_intent": "general_question",
+        "clarification_needed": false,
+        "is_final": true
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm Nova, your general banking assistant for the future of banking at Capital One. I can help you with anything relating to banking, relating to analyzing your past purchases, planning future purchases, scheduling splits, transferring money among accounts etc. Just let me know and I am here!",
+      "agent": "nova",
+      "timestamp": "2025-10-19T18:55:30.019310+00:00",
+      "routing_reasoning": "The user's input is empty and clarification is needed, indicating no clear intent. Routing to general assistant to prompt for input.",
+      "using_real_agent": true
+    },
+    {
+      "role": "user",
+      "content": "```json\n{\n    \"transcription\": \"how can I start investing\",\n    \"confidence\": 0.98,\n    \"detected_intent\": \"general_question\",\n    \"clarification_needed\": false\n}\n```",
+      "agent": null,
+      "timestamp": "2025-10-19T18:55:37.968440+00:00",
+      "transcription_metadata": {
+        "text": "```json\n{\n    \"transcription\": \"how can I start investing\",\n    \"confidence\": 0.98,\n    \"detected_intent\": \"general_question\",\n    \"clarification_needed\": false\n}\n```",
+        "confidence": 0.8,
+        "context_used": true,
+        "detected_intent": "general_question",
+        "clarification_needed": false,
+        "is_final": true
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm Nova, your general banking assistant for the future of banking at Capital One. I can help you with anything relating to banking, relating to analyzing your past purchases, planning future purchases, scheduling splits, transferring money among accounts etc. Just let me know and I am here!",
+      "agent": "nova",
+      "timestamp": "2025-10-19T18:55:44.180135+00:00",
+      "routing_reasoning": "Fallback due to error: Invalid operation: The `response.text` quick accessor requires the response to contain a valid `Part`, but none were returned. The candidate's [finish_reason](https://ai.google.dev/api/generate-content#finishreason) is 2.",
+      "using_real_agent": true
+    },
+    {
+      "role": "user",
+      "content": "```json\n{\n    \"transcription\": \"What's my monthly budget right now\",\n    \"confidence\": 0.97,\n    \"detected_intent\": \"general_question\",\n    \"clarification_needed\": false\n}\n```",
+      "agent": null,
+      "timestamp": "2025-10-19T18:56:12.487174+00:00",
+      "transcription_metadata": {
+        "text": "```json\n{\n    \"transcription\": \"What's my monthly budget right now\",\n    \"confidence\": 0.97,\n    \"detected_intent\": \"general_question\",\n    \"clarification_needed\": false\n}\n```",
+        "confidence": 0.8,
+        "context_used": true,
+        "detected_intent": "general_question",
+        "clarification_needed": false,
+        "is_final": true
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "Hi! I'm Nebula, a personal spending coach designed solely for you by Capital One. How can I help you understand your spending patterns today? You can say something like \"What was my spending patterns last week? \"",
+      "agent": "nebula",
+      "timestamp": "2025-10-19T18:56:18.266142+00:00",
+      "routing_reasoning": "User is asking about their monthly budget, which falls under spending coaching and budget management.",
+      "using_real_agent": true
+    },
+    {
+      "role": "user",
+      "content": "```json\n{\n    \"transcription\": \"What were my spending patterns last week?\",\n    \"confidence\": 0.98,\n    \"detected_intent\": \"transaction_inquiry\",\n    \"clarification_needed\": false\n}\n```",
+      "agent": null,
+      "timestamp": "2025-10-19T18:56:32.440114+00:00",
+      "transcription_metadata": {
+        "text": "```json\n{\n    \"transcription\": \"What were my spending patterns last week?\",\n    \"confidence\": 0.98,\n    \"detected_intent\": \"transaction_inquiry\",\n    \"clarification_needed\": false\n}\n```",
+        "confidence": 0.8,
+        "context_used": true,
+        "detected_intent": "general_question",
+        "clarification_needed": false,
+        "is_final": true
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "Hi! I'm Nebula, a personal spending coach designed solely for you by Capital One. How can I help you understand your spending patterns today? You can say something like \"What was my spending patterns last week? \"",
+      "agent": "nebula",
+      "timestamp": "2025-10-19T18:56:36.986885+00:00",
+      "routing_reasoning": "User is asking for an analysis of their spending patterns over a specific period.",
+      "using_real_agent": true
+    }
+  ],
+  "events": [],
+  "context_snapshots": [
+    {
+      "context": {
+        "execution_time_ms": 0
+      },
+      "timestamp": "2025-10-19T18:55:26.051033+00:00"
+    },
+    {
+      "context": {
+        "get_account_balance": {
+          "total_balance": 4880,
+          "total_rewards": 0,
+          "num_accounts": 3,
+          "accounts": [
+            {
+              "account_id": "68f42c409683f20dd51a0294",
+              "type": "Checking",
+              "balance": 1500,
+              "nickname": "Auto Account 2025",
+              "rewards": 0
+            },
+            {
+              "account_id": "68f42c459683f20dd51a0295",
+              "type": "Checking",
+              "balance": 1500,
+              "nickname": "Auto Account 2025",
+              "rewards": 0
+            },
+            {
+              "account_id": "68f42c519683f20dd51a0296",
+              "type": "Checking",
+              "balance": 1880,
+              "nickname": "Auto Account 2025",
+              "rewards": 0
+            }
+          ]
+        },
+        "get_customer_info": {
+          "_id": "68f42c289683f20dd51a0293",
+          "first_name": "Taylor",
+          "last_name": "River",
+          "address": {
+            "street_number": "123",
+            "street_name": "Startup Ave",
+            "city": "Austin",
+            "state": "TX",
+            "zip": "73301"
+          },
+          "accounts": [
+            {
+              "_id": "68f42c409683f20dd51a0294",
+              "type": "Checking",
+              "nickname": "Auto Account 2025",
+              "rewards": 0,
+              "balance": 1500,
+              "customer_id": "68f42c289683f20dd51a0293",
+              "bills": [],
+              "deposits": [],
+              "purchases": []
+            },
+            {
+              "_id": "68f42c459683f20dd51a0295",
+              "type": "Checking",
+              "nickname": "Auto Account 2025",
+              "rewards": 0,
+              "balance": 1500,
+              "customer_id": "68f42c289683f20dd51a0293",
+              "bills": [],
+              "deposits": [],
+              "purchases": []
+            },
+            {
+              "_id": "68f42c519683f20dd51a0296",
+              "type": "Checking",
+              "nickname": "Auto Account 2025",
+              "rewards": 0,
+              "balance": 1880,
+              "customer_id": "68f42c289683f20dd51a0293",
+              "bills": [
+                {
+                  "_id": "68f42c519683f20dd51a0297",
+                  "status": "pending",
+                  "payee": "Utility Provider",
+                  "nickname": "Auto-created Bill",
+                  "payment_date": "2025-10-26",
+                  "recurring_date": 15,
+                  "payment_amount": 120,
+                  "creation_date": "2025-10-19",
+                  "account_id": "68f42c519683f20dd51a0296"
+                },
+                {
+                  "_id": "68f42e559683f20dd51a02f4",
+                  "status": "pending",
+                  "payee": "City Utilities",
+                  "nickname": "Water bill",
+                  "payment_date": "2025-11-05",
+                  "recurring_date": 5,
+                  "payment_amount": 89.75,
+                  "creation_date": "2025-10-19",
+                  "account_id": "68f42c519683f20dd51a0296"
+                }
+              ],
+              "deposits": [
+                {
+                  "_id": "68f42c519683f20dd51a0298",
+                  "medium": "balance",
+                  "transaction_date": "2025-10-19",
+                  "status": "executed",
+                  "amount": 500,
+                  "description": "Sample Paycheck Deposit",
+                  "payee_id": "68f42c519683f20dd51a0296",
+                  "type": "deposit"
+                },
+                {
+                  "_id": "68f42e499683f20dd51a02f0",
+                  "medium": "balance",
+                  "transaction_date": "2025-10-01",
+                  "status": "pending",
+                  "amount": 800,
+                  "description": "Freelance payment",
+                  "payee_id": "68f42c519683f20dd51a0296",
+                  "type": "deposit"
+                },
+                {
+                  "_id": "68f42e4c9683f20dd51a02f1",
+                  "medium": "rewards",
+                  "transaction_date": "2025-09-20",
+                  "status": "pending",
+                  "amount": 50,
+                  "description": "Cashback adjustment",
+                  "payee_id": "68f42c519683f20dd51a0296",
+                  "type": "deposit"
+                }
+              ],
+              "purchases": [
+                {
+                  "_id": "68f42c529683f20dd51a0299",
+                  "merchant_id": "57cf75cea73e494d8675ec4a",
+                  "medium": "balance",
+                  "purchase_date": "2025-10-19",
+                  "amount": 120,
+                  "status": "executed",
+                  "description": "Sample Grocery Purchase",
+                  "type": "merchant",
+                  "payer_id": "68f42c519683f20dd51a0296",
+                  "payee_id": "57cf75cea73e494d8675ec4a"
+                },
+                {
+                  "_id": "68f42e4e9683f20dd51a02f2",
+                  "merchant_id": "57cf75cea73e494d8675ec4a",
+                  "medium": "balance",
+                  "purchase_date": "2025-10-05",
+                  "amount": 60,
+                  "status": "pending",
+                  "description": "Restaurant dinner",
+                  "type": "merchant",
+                  "payer_id": "68f42c519683f20dd51a0296"
+                },
+                {
+                  "_id": "68f42e529683f20dd51a02f3",
+                  "merchant_id": "57cf75cea73e494d8675ec4a",
+                  "medium": "balance",
+                  "purchase_date": "2025-10-10",
+                  "amount": 42.5,
+                  "status": "pending",
+                  "description": "Gas station",
+                  "type": "merchant",
+                  "payer_id": "68f42c519683f20dd51a0296"
+                }
+              ]
+            }
+          ]
+        },
+        "execution_time_ms": 2.1
+      },
+      "timestamp": "2025-10-19T18:55:40.566639+00:00"
+    },
+    {
+      "context": {
+        "analyze_spending_patterns": {
+          "total_last_30_days": 222.5,
+          "total_previous_30_days": 0.0,
+          "average_daily_spending": 7.42,
+          "trend_percent": 0,
+          "trend": "stable",
+          "transaction_count": 3
+        },
+        "get_spending_by_category": {
+          "groceries": 120.0,
+          "dining": 60.0,
+          "gas": 42.5,
+          "utilities": 0.0,
+          "shopping": 0.0,
+          "other": 0.0
+        },
+        "get_recent_transactions": [
+          {
+            "_id": "68f42c529683f20dd51a0299",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-19",
+            "amount": 120,
+            "status": "executed",
+            "description": "Sample Grocery Purchase",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "payee_id": "57cf75cea73e494d8675ec4a",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e529683f20dd51a02f3",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-10",
+            "amount": 42.5,
+            "status": "pending",
+            "description": "Gas station",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e4e9683f20dd51a02f2",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-05",
+            "amount": 60,
+            "status": "pending",
+            "description": "Restaurant dinner",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          }
+        ],
+        "execution_time_ms": 0.52
+      },
+      "timestamp": "2025-10-19T18:56:14.945859+00:00"
+    },
+    {
+      "context": {
+        "get_recent_transactions": [
+          {
+            "_id": "68f42c529683f20dd51a0299",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-19",
+            "amount": 120,
+            "status": "executed",
+            "description": "Sample Grocery Purchase",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "payee_id": "57cf75cea73e494d8675ec4a",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e529683f20dd51a02f3",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-10",
+            "amount": 42.5,
+            "status": "pending",
+            "description": "Gas station",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          },
+          {
+            "_id": "68f42e4e9683f20dd51a02f2",
+            "merchant_id": "57cf75cea73e494d8675ec4a",
+            "medium": "balance",
+            "purchase_date": "2025-10-05",
+            "amount": 60,
+            "status": "pending",
+            "description": "Restaurant dinner",
+            "type": "merchant",
+            "payer_id": "68f42c519683f20dd51a0296",
+            "account_id": "68f42c519683f20dd51a0296",
+            "account_type": "Checking"
+          }
+        ],
+        "analyze_spending_patterns": {
+          "total_last_30_days": 222.5,
+          "total_previous_30_days": 0.0,
+          "average_daily_spending": 7.42,
+          "trend_percent": 0,
+          "trend": "stable",
+          "transaction_count": 3
+        },
+        "execution_time_ms": 0.75
+      },
+      "timestamp": "2025-10-19T18:56:33.979815+00:00"
+    }
+  ],
+  "summary_bundle": null
+}

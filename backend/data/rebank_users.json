@@ -37,6 +37,20 @@
         "primaryColor": "#30cfd0",
         "secondaryColor": "#330867"
       }
+    },
+    {
+      "id": "user_4",
+      "email": "hehe@gmail.com",
+      "password": "lolololol",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "zip_code": "73301",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "preferences": {
+        "avatarStyle": "futuristic",
+        "primaryColor": "#30cfd0",
+        "secondaryColor": "#330867"
+      }
     }
   ]
 }

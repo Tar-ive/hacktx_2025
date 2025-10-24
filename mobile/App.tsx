@@ -5,6 +5,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text } from 'react-native';
 
+// Import error boundary
+import ErrorBoundary from './components/ErrorBoundary';
+
 // Import auth store
 import { useAuthStore } from './stores/authStore';
 
@@ -125,5 +128,9 @@ function Navigation() {
 }
 
 export default function App() {
-  return <Navigation />;
+  return (
+    <ErrorBoundary>
+      <Navigation />
+    </ErrorBoundary>
+  );
 }

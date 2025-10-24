@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from src.orchestrator.websocket_handler import WebSocketConnectionManager, AudioStreamProcessor
 from src.services.speech_to_text import speech_to_text_service
 from src.config import config
+from src.services.adk_agent_service import adk_agent_service
 
 
 async def test_components():
@@ -49,8 +50,10 @@ async def test_components():
     # Test 5: Configuration Status
     print("\n5. Configuration Status:")
     print(f"   • Gemini API Key: {'✅' if config.GEMINI_API_KEY else '❌'}")
-    print(f"   • ElevenLabs API Key: {'✅' if config.ELEVENLABS_API_KEY else '❌'}")
-    print(f"   • ElevenLabs Agents: {'✅' if config.has_elevenlabs_agents() else '❌'}")
+    print(f"   • ADK Agents Enabled: {'✅' if adk_agent_service.is_available else '❌'}")
+    if not adk_agent_service.is_available:
+        reason = adk_agent_service.disabled_reason or 'disabled via config'
+        print(f"     ↳ {reason}")
 
     # Test 6: Agent Routing
     print("\n6. Testing Agent Routing...")
@@ -76,10 +79,10 @@ async def test_components():
     print("• Speech-to-text integration prepared")
     print("• Session management system ready")
 
-    if not config.GEMINI_API_KEY or not config.ELEVENLABS_API_KEY:
+    if not config.GEMINI_API_KEY or not adk_agent_service.is_available:
         print("\n⚠️  Next Steps:")
         print("1. Set GEMINI_API_KEY in .env")
-        print("2. Set ELEVENLABS_API_KEY in .env")
+        print("2. Ensure ENABLE_ADK_AGENTS=true (default) for live responses")
         print("3. Set NESSIE_API_KEY and NESSIE_CUSTOMER_ID for full functionality")
 
 

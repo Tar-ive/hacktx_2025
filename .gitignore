@@ -239,3 +239,4 @@ web-build/
 
 # Testing
 coverage/
+backend/agents/run_elevenlabs_demo.sh

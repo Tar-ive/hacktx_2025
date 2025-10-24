@@ -1,14 +1,14 @@
 # Voice Banking Assistant Backend
 
-**Production-ready** FastAPI backend with 4 real ElevenLabs conversational AI agents.
+**Production-ready** FastAPI backend with Google ADK + Gemini powered conversational agents.
 
-## ✅ Status: 100% Complete & Working
+## ✅ Status: ADK Agents Ready & Live
 
-🎉 **All 4 ElevenLabs agents created and integrated!**
+🎉 **All 4 banking personas (Nebula, Atlas, Sentinel, Nova) now run on Google ADK.**
 
 ## Features
 
-- ✅ **4 Specialized Agents** (Nebula, Atlas, Sentinel, Nova)
+- ✅ **4 Specialized Agents (Gemini ADK)** (Nebula, Atlas, Sentinel, Nova)
 - ✅ **Deterministic Agent Routing** (if/elif/else logic, NO ML)
 - ✅ **Parallel Tool Execution** (concurrent data fetching)
 - ✅ **Multi-Layer Caching** (Memory → File → API with fallbacks)
@@ -37,11 +37,7 @@ curl -X POST http://localhost:8000/api/v1/chat/message \
 
 **Expected startup**:
 ```
-✓ ElevenLabs Agents: CONFIGURED (4 real agents)
-  • Nebula: agent_0901k7xas6p0...
-  • Atlas: agent_7101k7xas7n8...
-  • Sentinel: agent_1401k7xas9c2...
-  • Nova: agent_6701k7xasabb...
+✓ ADK Agents: ENABLED (Gemini responses active)
 ```
 
 ## 📖 Complete Documentation

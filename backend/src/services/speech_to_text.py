@@ -92,11 +92,18 @@ class GeminiSpeechToText:
             }
         """
         try:
-            # Detect audio format
+            # Detect audio format and validate
             if audio_data[:4] == b'\x1a\x45\xdf\xa3':
                 audio_format = "webm"  # WebM magic bytes
+                print(f"✓ Detected WebM audio format")
+            elif audio_data[:4] == b'RIFF':
+                audio_format = "wav"  # Valid WAV with RIFF header
+                print(f"✓ Detected valid WAV audio format (RIFF header present)")
             else:
-                audio_format = "wav"  # Default to WAV
+                # Unknown format - log warning
+                print(f"⚠️  Unknown audio format. First 4 bytes: {audio_data[:4]}")
+                print(f"⚠️  This may cause Gemini transcription to fail")
+                audio_format = "wav"  # Try WAV anyway
             
             # Build context-aware prompt
             context_prompt = "You are a banking assistant transcribing a user's speech.\n\n"
