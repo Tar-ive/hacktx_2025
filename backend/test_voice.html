@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test ElevenLabs Voice Agents</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .agent-button {
+            display: inline-block;
+            margin: 10px;
+            padding: 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .agent-button:hover {
+            background: #0056b3;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Test Voice Banking Agents</h1>
+    
+    <p>Click a button to start talking with an agent:</p>
+    
+    <div>
+        <button class="agent-button" onclick="startAgent('nebula')">
+            💰 Nebula (Spending Coach)
+        </button>
+        <button class="agent-button" onclick="startAgent('atlas')">
+            📈 Atlas (Investment Advisor)
+        </button>
+        <button class="agent-button" onclick="startAgent('sentinel')">
+            🛡️ Sentinel (Security Monitor)
+        </button>
+        <button class="agent-button" onclick="startAgent('nova')">
+            ⭐ Nova (General Assistant)
+        </button>
+    </div>
+    
+    <div id="status"></div>
+    
+    <script>
+        // Your agent IDs from .env
+        const AGENT_IDS = {
+            nebula: 'agent_0901k7xas6p0eg79kjbrcg0ac4r4',
+            atlas: 'agent_7101k7xas7n8fnxa4k56tzwkvs9w',
+            sentinel: 'agent_1401k7xas9c2e2kr1z6btnr6vg2j',
+            nova: 'agent_6701k7xasabbfm4b1bthkvvkmbxj'
+        };
+        
+        const XI_API_KEY = 'sk_03456f8f2b4a06f9fbd696b3f5202301261627152e3615b0'; // From your .env
+        
+        async function startAgent(agentName) {
+            const agentId = AGENT_IDS[agentName];
+            const status = document.getElementById('status');
+            
+            status.innerHTML = `<p>🔄 Starting ${agentName} agent...</p>`;
+            
+            try {
+                // Get signed URL for this agent
+                const response = await fetch('https://api.elevenlabs.io/v1/convai/conversation/get_signed_url', {
+                    method: 'POST',
+                    headers: {
+                        'xi-api-key': XI_API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agent_id: agentId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.text();
+                    status.innerHTML = `<p>❌ Error: ${error}</p>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                const signedUrl = data.signed_url;
+                
+                status.innerHTML = `
+                    <p>✅ Agent ${agentName} is ready!</p>
+                    <p><strong>Signed URL obtained. For full voice functionality:</strong></p>
+                    <ol>
+                        <li>Use ElevenLabs' Conversational AI Widget</li>
+                        <li>Or implement WebSocket client for audio streaming</li>
+                        <li>Signed URL: <code>${signedUrl.substring(0, 50)}...</code></li>
+                    </ol>
+                    <p><a href="https://elevenlabs.io/docs/conversational-ai/overview" target="_blank">View ElevenLabs Docs →</a></p>
+                `;
+                
+            } catch (error) {
+                status.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

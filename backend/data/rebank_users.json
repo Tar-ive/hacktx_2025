@@ -1,0 +1,56 @@
+{
+  "users": [
+    {
+      "id": "demo_user",
+      "email": "taylor@rebankaustin.com",
+      "password": "demo1234",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "preferences": {
+        "primaryColor": "#667EEA",
+        "secondaryColor": "#764BA2"
+      }
+    },
+    {
+      "id": "user_2",
+      "email": "test@example.com",
+      "password": "test123",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "zip_code": "78701",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "preferences": {
+        "primaryColor": "#667EEA"
+      }
+    },
+    {
+      "id": "user_3",
+      "email": "test@gmail.com",
+      "password": "kusum51",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "zip_code": "73301",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "preferences": {
+        "avatarStyle": "futuristic",
+        "primaryColor": "#30cfd0",
+        "secondaryColor": "#330867"
+      }
+    },
+    {
+      "id": "user_4",
+      "email": "hehe@gmail.com",
+      "password": "lolololol",
+      "first_name": "Taylor",
+      "last_name": "River",
+      "zip_code": "73301",
+      "customer_id": "68f42c289683f20dd51a0293",
+      "preferences": {
+        "avatarStyle": "futuristic",
+        "primaryColor": "#30cfd0",
+        "secondaryColor": "#330867"
+      }
+    }
+  ]
+}

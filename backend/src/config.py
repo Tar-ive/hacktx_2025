@@ -1,0 +1,85 @@
+"""Configuration management for the banking backend."""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+class Config:
+    """Application configuration."""
+    
+    # Nessie API
+    NESSIE_API_KEY = os.getenv("NESSIE_API_KEY", "")
+    NESSIE_CUSTOMER_ID = os.getenv("NESSIE_CUSTOMER_ID", "")
+    NESSIE_API_BASE = os.getenv("NESSIE_API_BASE", "http://api.nessieisreal.com")
+    
+    # Gemini API
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+    # ADK agent configuration
+    ENABLE_ADK_AGENTS = os.getenv("ENABLE_ADK_AGENTS", "true").lower() == "true"
+
+    # Legacy ElevenLabs configuration retained for backwards compatibility
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+    ELEVENLABS_WEBHOOK_SECRET = os.getenv("ELEVENLABS_WEBHOOK_SECRET", "")
+    AGENT_ID_NEBULA = os.getenv("AGENT_ID_NEBULA", "")
+    AGENT_ID_ATLAS = os.getenv("AGENT_ID_ATLAS", "")
+    AGENT_ID_SENTINEL = os.getenv("AGENT_ID_SENTINEL", "")
+    AGENT_ID_NOVA = os.getenv("AGENT_ID_NOVA", "")
+
+    @classmethod
+    def adk_agents_enabled(cls) -> bool:
+        """Return True when ADK agents are enabled and credentials are present."""
+        return cls.ENABLE_ADK_AGENTS and bool(cls.GEMINI_API_KEY)
+
+    @classmethod
+    def has_elevenlabs_agents(cls) -> bool:
+        """Legacy alias that now checks ADK agent availability."""
+        return cls.adk_agents_enabled()
+    
+    # Cache configuration
+    CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
+    CACHE_FILE_PATH = os.getenv("CACHE_FILE_PATH", "data/cache/customer_data.json")
+    CONVERSATION_DATA_DIR = os.getenv("CONVERSATION_DATA_DIR", "data/conversations")
+    USER_DATA_FILE = os.getenv("USER_DATA_FILE", "data/rebank_users.json")
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    NESSIE_DATA_PATH = os.getenv("NESSIE_DATA_PATH", str(_PROJECT_ROOT / "nessie" / "user.json"))
+    
+    # Server configuration
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = int(os.getenv("PORT", "8000"))
+    DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+    
+    # Version
+    VERSION = "1.0.0"
+    
+    @classmethod
+    def validate(cls):
+        """Validate required configuration."""
+        required = [
+            ("NESSIE_API_KEY", cls.NESSIE_API_KEY),
+            ("NESSIE_CUSTOMER_ID", cls.NESSIE_CUSTOMER_ID),
+        ]
+        
+        missing = [name for name, value in required if not value]
+        
+        if missing:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+        
+        # Ensure cache directory exists
+        cache_dir = Path(cls.CACHE_FILE_PATH).parent
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure conversation directory exists
+        conversation_dir = Path(cls.CONVERSATION_DATA_DIR)
+        conversation_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure user data file exists
+        user_file = Path(cls.USER_DATA_FILE)
+        if not user_file.exists():
+            user_file.parent.mkdir(parents=True, exist_ok=True)
+            user_file.write_text("{}", encoding="utf-8")
+
+config = Config()

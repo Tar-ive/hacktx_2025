@@ -1,0 +1,40 @@
+{
+  "session_id": "session_cli_test",
+  "customer_id": "68f42c289683f20dd51a0293",
+  "created_at": "2025-10-19T09:00:51.522217+00:00",
+  "updated_at": "2025-10-19T09:00:51.526558+00:00",
+  "metadata": {
+    "source": "cli"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "How is my balance?",
+      "agent": null,
+      "timestamp": "2025-10-19T09:00:51.522573+00:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Your balance is great!",
+      "agent": "nova",
+      "timestamp": "2025-10-19T09:00:51.522782+00:00"
+    }
+  ],
+  "events": [
+    {
+      "event": "agent_started",
+      "payload": {
+        "event": "agent_started",
+        "agentId": "agent_test",
+        "agentName": null,
+        "conversationId": "session_cli_test",
+        "sessionId": null,
+        "utterance": "Starting response",
+        "timestamp": null,
+        "metadata": {}
+      },
+      "timestamp": "2025-10-19T09:00:51.526554+00:00"
+    }
+  ],
+  "context_snapshots": []
+}
